@@ -28,9 +28,9 @@ func TestRedis(t *testing.T) {
 	if err != nil {
 		logrus.Error("redis连接失败！", err)
 	}
-	keys, _, _ := Cache.Scan(context.Background(), 0, "countdown:OEC*", 0).Result()
+	keys, _, _ := Cache.Scan(context.Background(), 0, "countdown:*", 0).Result()
 	for _, i := range keys {
-		result := Cache.HMGet(context.Background(), i, "startTime").Val()
-		fmt.Println(result[0].(string))
+		result := Cache.HGetAll(context.Background(), i).Val()
+		fmt.Println(result)
 	}
 }

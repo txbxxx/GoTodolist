@@ -86,13 +86,13 @@ func (svc *UserCreateCountDownService) Create(token string) gin.H {
 			// key用countdown:OEC:{{ Identity }}
 			// 这里需要同步初始时间即可，day表示当前时间和初始时间的差值
 			key := "countdown:" + countdownModel + ":" + newCountdown.Identity
-			if is := utils.Cache.HMSet(context.Background(), key, map[string]any{"startTime": newCountdown.StartTime, "day": 0}); !is.Val() {
+			if is := utils.Cache.HMSet(context.Background(), key, map[string]any{"startTime": newCountdown.StartTime, "day": 0, "background": newCountdown.Background, "name": newCountdown.Name}); !is.Val() {
 				return fmt.Errorf("同步至redis失败")
 			}
 		} else {
 			// FDC
 			key := "countdown:" + countdownModel + ":" + newCountdown.Identity
-			if is := utils.Cache.HMSet(context.Background(), key, map[string]any{"endTime": newCountdown.EndTime, "day": 0}); !is.Val() {
+			if is := utils.Cache.HMSet(context.Background(), key, map[string]any{"endTime": newCountdown.EndTime, "day": 0, "background": newCountdown.Background, "name": newCountdown.Name}); !is.Val() {
 				return fmt.Errorf("同步至redis失败")
 			}
 		}

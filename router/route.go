@@ -28,6 +28,7 @@ func Router() *gin.Engine {
 	{
 		countdown.POST("/createCountDown", control.CreateCountdown)
 		countdown.POST("/delCountDown", control.DelCountdown)
+		countdown.POST("/listCountDown", control.ListCountDown)
 	}
 	return httpServer
 }

@@ -39,3 +39,16 @@ func DelCountdown(c *gin.Context) {
 		})
 	}
 }
+
+// ListCountDown 列出倒计时
+func ListCountDown(c *gin.Context) {
+	var svc countdownSvc.UserListCountDownService
+	err := c.ShouldBind(&svc)
+	if err == nil {
+		c.JSON(200, svc.List())
+	} else {
+		c.JSON(200, gin.H{
+			"error": err.Error(),
+		})
+	}
+}
