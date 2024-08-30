@@ -17,10 +17,10 @@ import (
 )
 
 type UserDelCountDownService struct {
-	Identity string `from:"identity" json:"identity" binding:"required"`
+	Identity string `form:"identity" json:"identity" binding:"required"`
 }
 
-func (svc *UserDelCountDownService) name() gin.H {
+func (svc *UserDelCountDownService) Del() gin.H {
 	// 查询倒计时是否存在
 	var countdown model.CountDown
 	if err := utils.DB.Model(&model.CountDown{}).Where("identity = ?", svc.Identity).Take(&countdown).Error; err != nil {

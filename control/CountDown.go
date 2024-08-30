@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// CreateCountdown 创建
 func CreateCountdown(c *gin.Context) {
 	var svc countdownSvc.UserCreateCountDownService
 	err := c.ShouldBind(&svc)
@@ -22,6 +23,19 @@ func CreateCountdown(c *gin.Context) {
 	} else {
 		c.JSON(200, gin.H{
 			"error": err,
+		})
+	}
+}
+
+// DelCountdown 删除
+func DelCountdown(c *gin.Context) {
+	var svc countdownSvc.UserDelCountDownService
+	err := c.ShouldBind(&svc)
+	if err == nil {
+		c.JSON(200, svc.Del())
+	} else {
+		c.JSON(200, gin.H{
+			"error": err.Error(),
 		})
 	}
 }
