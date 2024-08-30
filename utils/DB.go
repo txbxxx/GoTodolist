@@ -27,10 +27,10 @@ func DBUntil(DBUser, DBPwd, DBAddr, DBName, TablePrefix string) {
 	newLogger := logger.New(
 		log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer
 		logger.Config{
-			SlowThreshold:             time.Second, // 慢查询阈值
-			LogLevel:                  logger.Info, // 日志等级
-			IgnoreRecordNotFoundError: false,       // 忽略404错误
-			ParameterizedQueries:      true,        // 禁用参数化查询
+			SlowThreshold:             time.Second,  // 慢查询阈值
+			LogLevel:                  logger.Error, // 日志等级
+			IgnoreRecordNotFoundError: false,        // 忽略404错误
+			ParameterizedQueries:      true,         // 禁用参数化查询
 			//Colorful:                  false,       // 禁用彩色输出
 		},
 	)

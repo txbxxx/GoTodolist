@@ -9,11 +9,8 @@
 package test
 
 import (
-	"GoToDoList/utils"
 	"testing"
 )
 
 func TestCreateUser(t *testing.T) {
-	md5 := utils.GetMd5("123456")
-	println(md5)
 }

@@ -9,8 +9,10 @@
 package utils
 
 import (
+	"context"
 	"fmt"
 	"github.com/go-redis/redis/v8"
+	"github.com/sirupsen/logrus"
 	"strconv"
 )
 
@@ -21,7 +23,7 @@ func RedisUtils(RDBAddr, RDBPwd, RDBDefaultDB string) {
 	// 将字符串转换成int
 	RDB, err := strconv.Atoi(RDBDefaultDB)
 	if err != nil {
-		fmt.Println("将string转换成int失败！")
+		fmt.Println("将string转换成int失败！", err)
 	}
 
 	//连接redis
@@ -30,4 +32,8 @@ func RedisUtils(RDBAddr, RDBPwd, RDBDefaultDB string) {
 		Password: RDBPwd,
 		DB:       RDB,
 	})
+	err = Cache.Ping(context.Background()).Err()
+	if err != nil {
+		logrus.Error("redis连接失败！", err)
+	}
 }

@@ -91,7 +91,8 @@ func (svc *UserCreateCountDownService) Create(token string) gin.H {
 			}
 		} else {
 			// FDC
-			if is := utils.Cache.HMSet(context.Background(), "countdown:"+countdownModel+":"+newCountdown.Identity, map[string]any{"endTime": newCountdown.EndTime, "day": 0}); !is.Val() {
+			key := "countdown:" + countdownModel + ":" + newCountdown.Identity
+			if is := utils.Cache.HMSet(context.Background(), key, map[string]any{"endTime": newCountdown.EndTime, "day": 0}); !is.Val() {
 				return fmt.Errorf("同步至redis失败")
 			}
 		}
@@ -110,5 +111,3 @@ func (svc *UserCreateCountDownService) Create(token string) gin.H {
 		"msg":  "创建成功倒计时成功！！",
 	}
 }
-
-// TODO 刷新倒计时时间
