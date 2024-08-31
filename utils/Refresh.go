@@ -35,7 +35,7 @@ func AddCountDownRecycle(key string, identity string) error {
 		return fmt.Errorf("将已经到达的倒计时加入回收站失败: %v", rename.Err())
 	}
 	// 删除sql数据
-	err := DB.Model(&model.CountDown{}).Delete(&model.CountDown{Identity: identity}).Error
+	err := DB.Model(&model.CountDown{}).Where("identity = ?", identity).Delete(&model.CountDown{}).Error
 	if err != nil {
 		return fmt.Errorf("删除sql数据失败: %v", err)
 	}

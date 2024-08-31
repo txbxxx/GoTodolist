@@ -28,6 +28,6 @@ func TestRedis(t *testing.T) {
 	if err != nil {
 		logrus.Error("redis连接失败！", err)
 	}
-	result, err := Cache.HGetAll(context.Background(), "countdown:FDC:de104cf5-da79-4494-9d4b-31a6ddffd66f").Result()
-	fmt.Println(result["startTime"])
+	keys, _ := Cache.Scan(context.Background(), 0, "countdown:*:f72b2971-4d5e-48ea-9dc2-c7c154ee6b12", 10).Val()
+	fmt.Println(keys[0])
 }
