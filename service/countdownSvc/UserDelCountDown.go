@@ -11,7 +11,6 @@ package countdownSvc
 import (
 	"GoToDoList/model"
 	"GoToDoList/utils"
-	"context"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 )
@@ -30,19 +29,18 @@ func (svc *UserDelCountDownService) Del() gin.H {
 			"msg":  "系统繁忙请稍后再试",
 		}
 	}
-	// 存在则删除
-	if err := utils.DB.Delete(&countdown).Error; err != nil {
-		logrus.Error("删除倒计时失败", err)
+	if countdown.Identity == "" {
 		return gin.H{
 			"code": -1,
-			"msg":  "系统繁忙请稍后再试",
+			"msg":  "倒计时不存在",
 		}
 	}
+	// 存在则删除
 	// 将redis中同步的此倒计时的数据加入delete回收站
 	key := "countdown:FDC:" + countdown.Identity
-	rename := utils.Cache.Rename(context.Background(), key, "delete:"+key)
-	if rename.Err() != nil {
-		logrus.Error("到达的倒计时加入回收站失败")
+	err := utils.AddCountDownRecycle(key, countdown.Identity)
+	if err != nil {
+		logrus.Error("到达的倒计时加入回收站失败，")
 		return gin.H{
 			"code": -1,
 			"msg":  "系统繁忙请稍后再试",

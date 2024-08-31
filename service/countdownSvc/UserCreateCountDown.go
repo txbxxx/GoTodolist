@@ -11,7 +11,6 @@ package countdownSvc
 import (
 	"GoToDoList/model"
 	"GoToDoList/utils"
-	"context"
 	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -38,17 +37,14 @@ func (svc *UserCreateCountDownService) Create(token string) gin.H {
 			}
 		}
 	}
-
 	if data.Name != "" {
 		return gin.H{
 			"code": -1,
 			"msg":  "倒计时已存在",
 		}
 	}
-
 	// 创建对象前置操作
-	startTime := svc.StartTime.Unix()
-	endTime := svc.EndTime.Unix()
+	startTime, endTime := svc.StartTime.Unix(), svc.EndTime.Unix()
 	// 解析Token
 	user, err := utils.AnalyseToken(token)
 	if err != nil {
@@ -58,7 +54,6 @@ func (svc *UserCreateCountDownService) Create(token string) gin.H {
 			"msg":  "登录错误",
 		}
 	}
-
 	// 不存在则创建对象
 	newCountdown := model.CountDown{
 		Identity:     utils.GenerateUUID(),
@@ -71,35 +66,11 @@ func (svc *UserCreateCountDownService) Create(token string) gin.H {
 
 	// 开启事务
 	err = utils.DB.Transaction(func(tx *gorm.DB) error {
-		//插入数据库
-		if err = tx.Create(&newCountdown).Error; err != nil {
-			logrus.Error("创建倒计时错误: ", err)
-			return err
-		}
-
-		// 同步至redis
-		countdownModel := "FDC"
-		// 如果没有填写endTime的就是OEC(那么endTime就是int64的最小数)模式填写了就是FDC
-		if newCountdown.EndTime <= 0 {
-			// OEC模式
-			countdownModel = "OEC"
-			// key用countdown:OEC:{{ Identity }}
-			// 这里需要同步初始时间即可，day表示当前时间和初始时间的差值
-			key := "countdown:" + countdownModel + ":" + newCountdown.Identity
-			if is := utils.Cache.HMSet(context.Background(), key, map[string]any{"startTime": newCountdown.StartTime, "day": 0, "background": newCountdown.Background, "name": newCountdown.Name}); !is.Val() {
-				return fmt.Errorf("同步至redis失败")
-			}
-		} else {
-			// FDC
-			key := "countdown:" + countdownModel + ":" + newCountdown.Identity
-			if is := utils.Cache.HMSet(context.Background(), key, map[string]any{"endTime": newCountdown.EndTime, "day": 0, "background": newCountdown.Background, "name": newCountdown.Name}); !is.Val() {
-				return fmt.Errorf("同步至redis失败")
-			}
-		}
-		return nil
+		return svc.txCreate(tx, err, newCountdown)
 	})
 
 	if err != nil {
+		logrus.Error("创建倒计时错误: ", err)
 		return gin.H{
 			"code": -1,
 			"msg":  "系统繁忙请稍后再试",
@@ -110,4 +81,35 @@ func (svc *UserCreateCountDownService) Create(token string) gin.H {
 		"code": 200,
 		"msg":  "创建成功倒计时成功！！",
 	}
+}
+
+// txCreate 事务处理创建并同比至redis
+func (svc *UserCreateCountDownService) txCreate(tx *gorm.DB, err error, newCountdown model.CountDown) error {
+	//插入数据库
+	if err = tx.Create(&newCountdown).Error; err != nil {
+		logrus.Error("创建倒计时错误: ", err)
+		return err
+	}
+
+	// 同步至redis
+	countdownModel := "FDC"
+	// 如果没有填写endTime的就是OEC(那么endTime就是int64的最小数)模式填写了就是FDC
+	if newCountdown.EndTime <= 0 {
+		// OEC模式
+		countdownModel = "OEC"
+		// key用countdown:OEC:{{ Identity }}
+		// 这里需要同步初始时间即可，day表示当前时间和初始时间的差值
+		key := "countdown:" + countdownModel + ":" + newCountdown.Identity
+		// 计算过去时间oec
+		if _, err := utils.OecCalculate(newCountdown.StartTime, newCountdown.StartTime, key, newCountdown.Background, newCountdown.Name); err != nil {
+			return fmt.Errorf("同步至redis失败: %w", err)
+		}
+	} else {
+		key := "countdown:" + countdownModel + ":" + newCountdown.Identity
+		// FDC
+		if _, err := utils.FdcCalculate(newCountdown.StartTime, newCountdown.EndTime, newCountdown.Background, newCountdown.Name, key); err != nil {
+			return fmt.Errorf("同步至redis失败: %w", err)
+		}
+	}
+	return nil
 }

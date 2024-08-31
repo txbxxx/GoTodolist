@@ -10,11 +10,12 @@ package test
 
 import (
 	"fmt"
+	"strings"
 	"testing"
-	"time"
 )
 
 func TestCreateUser(t *testing.T) {
-	unix := time.Unix(1725091155, 0)
-	fmt.Println(unix)
+	s := "countdown:OEC:20c67cbf-2678-4e46-ad46-786f9e4cc62e"
+	split := strings.Split(s, ":")
+	fmt.Println(split[2])
 }
