@@ -1,6 +1,6 @@
 /**
  * @Author tanchang
- * @Description 刷新倒计时日期
+ * @Description 操作倒计时等其他操作
  * @Date 2024/8/30 21:57
  * @File:  Refresh
  * @Software: GoLand
@@ -27,7 +27,24 @@ const (
 	DELCountdownPrefix = "delete:"
 )
 
+// DelCountDownForRedis 从redis中删除一条数据
+// 从redis中删除数据，并不加入回收站
+func DelCountDownForRedis(identity string) error {
+	fmt.Println("identity:", identity)
+	keys, _, err := Cache.Scan(context.Background(), 0, "countdown:*:"+identity, 1).Result()
+	if err != nil || len(keys) == 0 {
+		return fmt.Errorf("要删除的数据不存在 %v", err)
+	}
+	// 删除
+	err = Cache.Del(context.Background(), keys...).Err()
+	if err != nil {
+		return fmt.Errorf("删除redis数据失败: %v", err)
+	}
+	return nil
+}
+
 // AddCountDownRecycle 添加至回收站
+// 将倒计时加上前缀delete: 表示加入回收站了
 func AddCountDownRecycle(key string, identity string) error {
 	//将已经到达的倒计时加入回收站
 	rename := Cache.Rename(context.Background(), key, DELCountdownPrefix+key)
@@ -43,25 +60,32 @@ func AddCountDownRecycle(key string, identity string) error {
 }
 
 // OecCalculate 计算Oec
+// FDC计算方法是当前期戳-开始日期的时间戳 最后在/86400 获得天数
+// 使用Ceil向上取整 0.1 天也是1天
 func OecCalculate(now, startTime int64, key, background, name string) (float64, error) {
 	day := float64(now-startTime) / 86400
 	// 将倒计时同步至redis，时间则向上取整
-	if _, err := Cache.HSet(context.Background(), key, map[string]any{"startTime": startTime, "day": 0, "background": background, "name": name}).Result(); err != nil {
+	if _, err := Cache.HSet(context.Background(), key, map[string]any{"startTime": startTime, "day": math.Ceil(day), "background": background, "name": name}).Result(); err != nil {
 		return 0, fmt.Errorf("同步redis失败: %v", err)
 	}
-	return day, nil
+	return math.Ceil(day), nil
 }
 
-func FdcCalculate(now, endTime int64, background, name, key string) (float64, error) {
+// FdcCalculate 计算Fdc
+// FDC计算方法是结束日期戳-当前日期的时间戳 最后在/86400 获得天数
+// 使用Ceil向上取整 0.1 天也是1天
+func FdcCalculate(now, endTime int64, key, background, name string) (float64, error) {
 	day := float64(endTime-now) / 86400
 	// 将倒计时同步至redis，时间则向上取整
 	if _, err := Cache.HSet(context.Background(), key, map[string]any{"endTime": endTime, "day": math.Ceil(day), "background": background, "name": name}).Result(); err != nil {
 		return 0, fmt.Errorf("同步redis失败: %v", err)
 	}
-	return day, nil
+	return math.Ceil(day), nil
 }
 
 // RefreshDayForMysql 从mysql中读取数据刷新倒计时
+// 从redis读取倒计时列表
+// 将倒计时列表中的数据同步至redis
 func RefreshDayForMysql() error {
 	countdown := make([]model.CountDown, 1)
 	if err := DB.Model(&model.CountDown{}).Find(&countdown).Error; err != nil {
@@ -81,7 +105,7 @@ func RefreshDayForMysql() error {
 			}
 			logrus.Info("同步成功，剩余时间: ", math.Ceil(day))
 		} else {
-			key := FDCCountdownPrefix + count.Identity
+			key = FDCCountdownPrefix + count.Identity
 			// 判断当前日期时间戳是否大于结束日期时间戳
 			if now >= count.EndTime {
 				// 大于则执行
@@ -94,7 +118,7 @@ func RefreshDayForMysql() error {
 			}
 			//FDC
 			// 如果没有大于，就计算还有多少天，使用结束时间减去现在时间
-			day, err := FdcCalculate(now, count.EndTime, count.Background, count.Name, key)
+			day, err := FdcCalculate(now, count.EndTime, key, count.Background, count.Name)
 			if err != nil {
 				return err
 			}
@@ -105,6 +129,7 @@ func RefreshDayForMysql() error {
 }
 
 // RefFDC FDC刷新
+// 从redis中读取数据计算剩余日期
 func RefFDC() error {
 	// 当前时间戳
 	now := time.Now().Unix()
@@ -136,7 +161,7 @@ func RefFDC() error {
 			continue
 		}
 
-		day, err := FdcCalculate(now, endTime, result["background"], result["name"], FDC)
+		day, err := FdcCalculate(now, endTime, FDC, result["background"], result["name"])
 		fmt.Println("keys:", FDC)
 		if err != nil {
 			return err
@@ -147,6 +172,7 @@ func RefFDC() error {
 }
 
 // RefOEC OEC刷新
+// 从redis中读取数据计算过期日期
 func RefOEC() error {
 	// 当前时间戳
 	now := time.Now().Unix()
@@ -165,10 +191,8 @@ func RefOEC() error {
 		}
 		// 转换为int64
 		startTime, _ := strconv.ParseInt(result["startTime"], 10, 64)
-		//取出identity OEC的格式为 countdown:OEC:{{ identity }},split[1] 为identity
-		split := strings.Split(OEC, "countdown:OEC:")
 		// 计算过去时间
-		day, err := OecCalculate(now, startTime, split[1], result["background"], result["name"])
+		day, err := OecCalculate(now, startTime, OEC, result["background"], result["name"])
 		if err != nil {
 			return err
 		}

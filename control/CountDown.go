@@ -52,3 +52,15 @@ func ListCountDown(c *gin.Context) {
 		})
 	}
 }
+
+func ModifyCountDown(c *gin.Context) {
+	var svc countdownSvc.UserModifyCountDownService
+	err := c.ShouldBind(&svc)
+	if err == nil {
+		c.JSON(200, svc.Modify())
+	} else {
+		c.JSON(200, gin.H{
+			"error": err.Error(),
+		})
+	}
+}

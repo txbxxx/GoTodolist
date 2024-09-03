@@ -94,7 +94,7 @@ func (svc *UserCreateCountDownService) txCreate(tx *gorm.DB, err error, newCount
 	// 同步至redis
 	countdownModel := "FDC"
 	// 如果没有填写endTime的就是OEC(那么endTime就是int64的最小数)模式填写了就是FDC
-	if newCountdown.EndTime <= 0 {
+	if newCountdown.EndTime < 0 {
 		// OEC模式
 		countdownModel = "OEC"
 		// key用countdown:OEC:{{ Identity }}
@@ -105,9 +105,13 @@ func (svc *UserCreateCountDownService) txCreate(tx *gorm.DB, err error, newCount
 			return fmt.Errorf("同步至redis失败: %w", err)
 		}
 	} else {
+		// 判断终止时间是否大于开始时间
+		if svc.EndTime.Unix() <= svc.StartTime.Unix() {
+			return fmt.Errorf("终止时间必须大于开始时间: %w", err)
+		}
 		key := "countdown:" + countdownModel + ":" + newCountdown.Identity
 		// FDC
-		if _, err := utils.FdcCalculate(newCountdown.StartTime, newCountdown.EndTime, newCountdown.Background, newCountdown.Name, key); err != nil {
+		if _, err := utils.FdcCalculate(newCountdown.StartTime, newCountdown.EndTime, key, newCountdown.Background, newCountdown.Name); err != nil {
 			return fmt.Errorf("同步至redis失败: %w", err)
 		}
 	}

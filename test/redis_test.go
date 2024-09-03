@@ -28,6 +28,7 @@ func TestRedis(t *testing.T) {
 	if err != nil {
 		logrus.Error("redis连接失败！", err)
 	}
-	keys, _ := Cache.Scan(context.Background(), 0, "countdown:*:f72b2971-4d5e-48ea-9dc2-c7c154ee6b12", 10).Val()
-	fmt.Println(keys[0])
+	keys, _, err := Cache.Scan(context.Background(), 0, "countdown:*:c5f3facf-ccf9-4d78-be76-959272fcfdf4", 1).Result()
+	fmt.Println(err)
+	fmt.Println(keys)
 }
