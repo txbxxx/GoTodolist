@@ -9,10 +9,13 @@
 package test
 
 import (
+	serializes "GoToDoList/serialized"
+	"GoToDoList/utils"
 	"context"
 	"fmt"
 	"github.com/go-redis/redis/v8"
 	"github.com/sirupsen/logrus"
+	"strings"
 	"testing"
 )
 
@@ -28,7 +31,11 @@ func TestRedis(t *testing.T) {
 	if err != nil {
 		logrus.Error("redis连接失败！", err)
 	}
-	keys, _, err := Cache.Scan(context.Background(), 0, "countdown:*:c5f3facf-ccf9-4d78-be76-959272fcfdf4", 1).Result()
-	fmt.Println(err)
-	fmt.Println(keys)
+	keys, _, _ := Cache.Scan(context.Background(), 0, utils.DELCountdownPrefix+"*c5f3facf-ccf9-4d78-be76-959272fcfdf4", 50).Result()
+	fmt.Println(len(keys))
+	for _, countdown := range keys {
+		identity := strings.Split(countdown, ":")[3]
+		result, _ := Cache.HGetAll(context.Background(), countdown).Result()
+		fmt.Println(serializes.CountdownSerializeSingle(result, identity))
+	}
 }

@@ -31,5 +31,10 @@ func Router() *gin.Engine {
 		countdown.GET("/listCountDown", control.ListCountDown)
 		countdown.POST("/modifyCountDown", control.ModifyCountDown)
 	}
+	recycle := httpServer.Group("/recycle")
+	{
+		recycle.GET("/listCountDown", control.RecycleListCountDown)
+		recycle.POST("/recoverCountDown", control.RecoverCountDown)
+	}
 	return httpServer
 }

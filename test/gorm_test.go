@@ -9,13 +9,15 @@
 package test
 
 import (
+	"GoToDoList/model"
+	"GoToDoList/utils"
 	"fmt"
-	"strings"
 	"testing"
 )
 
 func TestCreateUser(t *testing.T) {
-	s := "countdown:OEC:20c67cbf-2678-4e46-ad46-786f9e4cc62e"
-	split := strings.Split(s, ":")
-	fmt.Println(split[2])
+
+	var countdown model.CountDown
+	utils.DB.Model(&model.CountDown{}).Where("identity = ?", "c5f3facf-ccf9-4d78-be76-959272fcfdf4").Take(&countdown).Unscoped()
+	fmt.Println(countdown)
 }

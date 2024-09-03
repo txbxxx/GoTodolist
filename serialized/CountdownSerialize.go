@@ -1,6 +1,6 @@
 /**
  * @Author tanchang
- * @Description //TODO
+ * @Description 倒计时序列化
  * @Date 2024/8/30 18:14
  * @File:  CountdownSerialize
  * @Software: GoLand
@@ -23,6 +23,7 @@ type CountdownSerialize struct {
 	Background string `json:"background"`
 }
 
+// CountdownSerializeList 多个序列化
 func CountdownSerializeList(countdowns []map[string]string, identity string) []CountdownSerialize {
 	var countdownList []CountdownSerialize
 	for _, countdown := range countdowns {
@@ -36,7 +37,17 @@ func CountdownSerializeList(countdowns []map[string]string, identity string) []C
 	return countdownList
 }
 
-func CountdownSerializeSingle(countdown model.CountDown) CountdownSerialize {
+func CountdownSerializeSingle(countdown map[string]string, identity string) CountdownSerialize {
+	return CountdownSerialize{
+		Identity:   identity,
+		Name:       countdown["name"],
+		Day:        countdown["day"],
+		Background: countdown["background"],
+	}
+}
+
+// CountdownSerializeSingleModel 单个序列化
+func CountdownSerializeSingleModel(countdown model.CountDown) CountdownSerialize {
 	keyPrefix := "countdown:"
 	var day float64
 	var err error

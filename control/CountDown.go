@@ -53,6 +53,7 @@ func ListCountDown(c *gin.Context) {
 	}
 }
 
+// ModifyCountDown 修改倒计时
 func ModifyCountDown(c *gin.Context) {
 	var svc countdownSvc.UserModifyCountDownService
 	err := c.ShouldBind(&svc)
