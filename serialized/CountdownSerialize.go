@@ -24,11 +24,11 @@ type CountdownSerialize struct {
 }
 
 // CountdownSerializeList 多个序列化
-func CountdownSerializeList(countdowns []map[string]string, identity string) []CountdownSerialize {
+func CountdownSerializeList(countdowns []map[string]string) []CountdownSerialize {
 	var countdownList []CountdownSerialize
 	for _, countdown := range countdowns {
 		countdownList = append(countdownList, CountdownSerialize{
-			Identity:   identity,
+			Identity:   countdown["identity"],
 			Name:       countdown["name"],
 			Day:        countdown["day"],
 			Background: countdown["background"],
@@ -37,9 +37,9 @@ func CountdownSerializeList(countdowns []map[string]string, identity string) []C
 	return countdownList
 }
 
-func CountdownSerializeSingle(countdown map[string]string, identity string) CountdownSerialize {
+func CountdownSerializeSingle(countdown map[string]string) CountdownSerialize {
 	return CountdownSerialize{
-		Identity:   identity,
+		Identity:   countdown["identity"],
 		Name:       countdown["name"],
 		Day:        countdown["day"],
 		Background: countdown["background"],
@@ -52,12 +52,12 @@ func CountdownSerializeSingleModel(countdown model.CountDown) CountdownSerialize
 	var day float64
 	var err error
 	if countdown.EndTime > 0 {
-		day, err = utils.OecCalculate(time.Now().Unix(), countdown.StartTime, keyPrefix+"OEC"+countdown.Identity, countdown.Background, countdown.Name)
+		day, err = utils.OecCalculate(time.Now().Unix(), countdown.StartTime, keyPrefix+"OEC"+countdown.Identity, countdown.Background, countdown.Name, countdown.Identity)
 		if err != nil {
 			logrus.Error("计算日期错误:", err)
 		}
 	} else {
-		day, err = utils.FdcCalculate(time.Now().Unix(), countdown.EndTime, keyPrefix+"OEC"+countdown.Identity, countdown.Background, countdown.Name)
+		day, err = utils.FdcCalculate(time.Now().Unix(), countdown.StartTime, countdown.EndTime, keyPrefix+"OEC"+countdown.Identity, countdown.Background, countdown.Name, countdown.Identity)
 		if err != nil {
 			logrus.Error("计算日期错误:", err)
 		}

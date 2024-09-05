@@ -30,11 +30,13 @@ func Router() *gin.Engine {
 		countdown.DELETE("/delCountDown", control.DelCountdown)
 		countdown.GET("/listCountDown", control.ListCountDown)
 		countdown.POST("/modifyCountDown", control.ModifyCountDown)
+		countdown.GET("/searchCountDown", control.SearchCountDown)
 	}
 	recycle := httpServer.Group("/recycle")
 	{
 		recycle.GET("/listCountDown", control.RecycleListCountDown)
 		recycle.POST("/recoverCountDown", control.RecoverCountDown)
+		recycle.GET("/recoverCountDown", control.RecoverCountDown)
 	}
 	return httpServer
 }

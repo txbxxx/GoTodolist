@@ -28,20 +28,23 @@ type UserCreateCountDownService struct {
 
 func (svc *UserCreateCountDownService) Create(token string) gin.H {
 	data := model.CountDown{}
-	//查找是否有相同倒计时存在
+	var num int64
+	// 判断倒计时是否超过50个了
+	if err := utils.DB.Model(&data).Count(&num).Error; err != nil {
+		logrus.Error("查询倒计时数量错误: ", err)
+		return gin.H{"code": -1, "msg": "系统繁忙请稍后再试"}
+	}
+	if num > 50 {
+		return gin.H{"code": -1, "msg": "倒计时数量已满"}
+	}
+	// 查找是否有相同倒计时存在
 	if err := utils.DB.Model(&data).Take(&data, "name = ?", svc.Name).Error; err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return gin.H{
-				"code": -1,
-				"msg":  "系统繁忙请稍后再试",
-			}
+			return gin.H{"code": -1, "msg": "系统繁忙请稍后再试"}
 		}
 	}
 	if data.Name != "" {
-		return gin.H{
-			"code": -1,
-			"msg":  "倒计时已存在",
-		}
+		return gin.H{"code": -1, "msg": "倒计时已存在"}
 	}
 	// 创建对象前置操作
 	startTime, endTime := svc.StartTime.Unix(), svc.EndTime.Unix()
@@ -49,10 +52,7 @@ func (svc *UserCreateCountDownService) Create(token string) gin.H {
 	user, err := utils.AnalyseToken(token)
 	if err != nil {
 		logrus.Error("Token 解析错误：", err.Error())
-		return gin.H{
-			"code": -1,
-			"msg":  "登录错误",
-		}
+		return gin.H{"code": -1, "msg": "登录错误"}
 	}
 	// 不存在则创建对象
 	newCountdown := model.CountDown{
@@ -63,24 +63,16 @@ func (svc *UserCreateCountDownService) Create(token string) gin.H {
 		Background:   "",
 		UserIdentity: user.Identity,
 	}
-
 	// 开启事务
 	err = utils.DB.Transaction(func(tx *gorm.DB) error {
 		return svc.txCreate(tx, err, newCountdown)
 	})
-
 	if err != nil {
 		logrus.Error("创建倒计时错误: ", err)
-		return gin.H{
-			"code": -1,
-			"msg":  "系统繁忙请稍后再试",
-		}
+		return gin.H{"code": -1, "msg": "系统繁忙请稍后再试"}
 	}
 
-	return gin.H{
-		"code": 200,
-		"msg":  "创建成功倒计时成功！！",
-	}
+	return gin.H{"code": 200, "msg": "创建成功倒计时成功！！"}
 }
 
 // txCreate 事务处理创建并同比至redis
@@ -101,7 +93,7 @@ func (svc *UserCreateCountDownService) txCreate(tx *gorm.DB, err error, newCount
 		// 这里需要同步初始时间即可，day表示当前时间和初始时间的差值
 		key := "countdown:" + countdownModel + ":" + newCountdown.Identity
 		// 计算过去时间oec
-		if _, err := utils.OecCalculate(newCountdown.StartTime, newCountdown.StartTime, key, newCountdown.Background, newCountdown.Name); err != nil {
+		if _, err := utils.OecCalculate(newCountdown.StartTime, newCountdown.StartTime, key, newCountdown.Background, newCountdown.Name, newCountdown.Identity); err != nil {
 			return fmt.Errorf("同步至redis失败: %w", err)
 		}
 	} else {
@@ -111,7 +103,7 @@ func (svc *UserCreateCountDownService) txCreate(tx *gorm.DB, err error, newCount
 		}
 		key := "countdown:" + countdownModel + ":" + newCountdown.Identity
 		// FDC
-		if _, err := utils.FdcCalculate(newCountdown.StartTime, newCountdown.EndTime, key, newCountdown.Background, newCountdown.Name); err != nil {
+		if _, err := utils.FdcCalculate(newCountdown.StartTime, newCountdown.StartTime, newCountdown.EndTime, key, newCountdown.Background, newCountdown.Name, newCountdown.Identity); err != nil {
 			return fmt.Errorf("同步至redis失败: %w", err)
 		}
 	}

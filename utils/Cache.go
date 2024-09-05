@@ -105,10 +105,10 @@ func AddCountDownRecycle(key string, identity string) error {
 // OecCalculate 计算Oec
 // FDC计算方法是当前期戳-开始日期的时间戳 最后在/86400 获得天数
 // 使用Ceil向上取整 0.1 天也是1天
-func OecCalculate(now, startTime int64, key, background, name string) (float64, error) {
+func OecCalculate(now, startTime int64, key, background, name, identity string) (float64, error) {
 	day := float64(now-startTime) / 86400
 	// 将倒计时同步至redis，时间则向上取整
-	if _, err := Cache.HSet(context.Background(), key, map[string]any{"startTime": startTime, "day": math.Ceil(day), "background": background, "name": name}).Result(); err != nil {
+	if _, err := Cache.HSet(context.Background(), key, map[string]any{"startTime": startTime, "day": math.Ceil(day), "background": background, "name": name, "identity": identity}).Result(); err != nil {
 		return 0, fmt.Errorf("同步redis失败: %v", err)
 	}
 	return math.Ceil(day), nil
@@ -117,10 +117,10 @@ func OecCalculate(now, startTime int64, key, background, name string) (float64, 
 // FdcCalculate 计算Fdc
 // FDC计算方法是结束日期戳-当前日期的时间戳 最后在/86400 获得天数
 // 使用Ceil向上取整 0.1 天也是1天
-func FdcCalculate(now, endTime int64, key, background, name string) (float64, error) {
+func FdcCalculate(now, starTime, endTime int64, key, background, name, identity string) (float64, error) {
 	day := float64(endTime-now) / 86400
 	// 将倒计时同步至redis，时间则向上取整
-	if _, err := Cache.HSet(context.Background(), key, map[string]any{"endTime": endTime, "day": math.Ceil(day), "background": background, "name": name}).Result(); err != nil {
+	if _, err := Cache.HSet(context.Background(), key, map[string]any{"endTime": endTime, "starTime": starTime, "day": math.Ceil(day), "background": background, "name": name, "identity": identity}).Result(); err != nil {
 		return 0, fmt.Errorf("同步redis失败: %v", err)
 	}
 	return math.Ceil(day), nil
@@ -142,11 +142,11 @@ func RefreshDayForMysql() error {
 		key := OECCountdownPrefix + count.Identity
 		if count.EndTime <= 0 {
 			// 计算过去时间oec
-			day, err := OecCalculate(now, count.StartTime, key, count.Background, count.Name)
+			day, err := OecCalculate(now, count.StartTime, key, count.Background, count.Name, count.Identity)
 			if err != nil {
 				return err
 			}
-			logrus.Info("同步成功，剩余时间: ", math.Ceil(day))
+			logrus.Info("同步成功,已过去: ", math.Ceil(day))
 		} else {
 			key = FDCCountdownPrefix + count.Identity
 			// 判断当前日期时间戳是否大于结束日期时间戳
@@ -161,7 +161,7 @@ func RefreshDayForMysql() error {
 			}
 			//FDC
 			// 如果没有大于，就计算还有多少天，使用结束时间减去现在时间
-			day, err := FdcCalculate(now, count.EndTime, key, count.Background, count.Name)
+			day, err := FdcCalculate(now, count.StartTime, count.EndTime, key, count.Background, count.Name, count.Identity)
 			if err != nil {
 				return err
 			}
@@ -191,12 +191,13 @@ func RefFDC() error {
 		}
 		// 转换为int64
 		endTime, _ := strconv.ParseInt(result["endTime"], 10, 64)
+		startTime, _ := strconv.ParseInt(result["start"], 10, 64)
 		//取出identity FDC的格式为 countdown:FDC:{{ identity }}
-		split := strings.Split(FDC, "countdown:FDC:")
+		identity := strings.Split(FDC, "countdown:FDC:")[1]
 		// 判断当前日期时间戳是否大于结束日期时间戳
 		if now >= endTime {
 			//将已经到达的倒计时加入回收站
-			err := AddCountDownRecycle(FDC, split[1])
+			err := AddCountDownRecycle(FDC, identity)
 			if err != nil {
 				return err
 			}
@@ -204,7 +205,7 @@ func RefFDC() error {
 			continue
 		}
 
-		day, err := FdcCalculate(now, endTime, FDC, result["background"], result["name"])
+		day, err := FdcCalculate(now, startTime, endTime, FDC, result["background"], result["name"], identity)
 		fmt.Println("keys:", FDC)
 		if err != nil {
 			return err
@@ -227,6 +228,8 @@ func RefOEC() error {
 	}
 
 	for _, OEC := range FDCKeys {
+		// 获取identity值
+		identity := strings.Split(OEC, "countdown:OEC:")[1]
 		// 获取当前OEC key里面的全部字段，返回一个字符串map
 		result, err := Cache.HGetAll(context.Background(), OEC).Result()
 		if err != nil {
@@ -235,7 +238,7 @@ func RefOEC() error {
 		// 转换为int64
 		startTime, _ := strconv.ParseInt(result["startTime"], 10, 64)
 		// 计算过去时间
-		day, err := OecCalculate(now, startTime, OEC, result["background"], result["name"])
+		day, err := OecCalculate(now, startTime, OEC, result["background"], result["name"], identity)
 		if err != nil {
 			return err
 		}

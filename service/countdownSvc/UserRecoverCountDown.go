@@ -28,7 +28,6 @@ func (svc *UserRecoverCountDownService) RecoverCountDown() gin.H {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			logrus.Error("RecoverCountDown: 查找被删除的数据失败", err)
 			return gin.H{"code": -1, "msg": "系统繁忙请稍后在试"}
-
 		}
 		logrus.Error("RecoverCountDown: 恢复失败", err)
 		return gin.H{"code": -1, "msg": "系统繁忙请稍后在试"}

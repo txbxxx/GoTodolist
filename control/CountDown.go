@@ -65,3 +65,15 @@ func ModifyCountDown(c *gin.Context) {
 		})
 	}
 }
+
+func SearchCountDown(c *gin.Context) {
+	var svc countdownSvc.UserSearchCountDownService
+	err := c.ShouldBind(&svc)
+	if err == nil {
+		c.JSON(200, svc.Search())
+	} else {
+		c.JSON(200, gin.H{
+			"error": err.Error(),
+		})
+	}
+}

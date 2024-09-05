@@ -14,7 +14,6 @@ import (
 	"context"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
-	"strings"
 )
 
 type UserRecycleCountDownListService struct{}
@@ -27,10 +26,7 @@ func (svc UserRecycleCountDownListService) List() gin.H {
 		return gin.H{"code": -1, "msg": "系统繁忙请稍后在试"}
 	}
 	var deleteList []map[string]string
-	var identity string
 	for _, countdown := range keys {
-		// 获取identity
-		identity = strings.Split(countdown, ":")[3]
 		// 从redis读取数据
 		result, err := utils.Cache.HGetAll(context.Background(), countdown).Result()
 		if err != nil {
@@ -42,6 +38,6 @@ func (svc UserRecycleCountDownListService) List() gin.H {
 	return gin.H{
 		"code": 200,
 		"msg":  "获取回收站倒计时数据成功",
-		"data": serializes.CountdownSerializeList(deleteList, identity),
+		"data": serializes.CountdownSerializeList(deleteList),
 	}
 }

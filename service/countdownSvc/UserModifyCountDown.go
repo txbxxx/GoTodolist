@@ -31,7 +31,7 @@ func (svc *UserModifyCountDownService) Modify() gin.H {
 	// 查询是否存在于数据库中
 	countdown := &model.CountDown{}
 	var count int64
-	if err := utils.DB.Model(&model.CountDown{}).Where("identity = ?", svc.Identity).Take(countdown).Count(&count).Error; err != nil {
+	if err := utils.DB.Model(&model.CountDown{}).Where("identity = ?", svc.Identity).Or("name = ?", svc.Name).Take(countdown).Count(&count).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return gin.H{
 				"code": -1,
@@ -45,10 +45,7 @@ func (svc *UserModifyCountDownService) Modify() gin.H {
 		}
 	}
 	// 修改倒计时
-	countdown.Name = svc.Name
-	countdown.EndTime = svc.EndTime.Unix()
-	countdown.StartTime = svc.StartTime.Unix()
-	countdown.Background = svc.Background
+	countdown.Name, countdown.EndTime, countdown.StartTime, countdown.Background = svc.Name, svc.EndTime.Unix(), svc.StartTime.Unix(), svc.Background
 	// 保存
 	if err := utils.DB.Save(countdown).Error; err != nil {
 		logrus.Error("保存倒计时失败", err)

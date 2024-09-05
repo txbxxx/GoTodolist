@@ -41,7 +41,7 @@ func CronJob() {
 		logrus.Error("将倒计时同步至redis错误: ", err)
 	}
 	// 每小时执行一次,从数据库中读取数据
-	if _, err := c.AddFunc("*/1  * * * *", func() { Run(RefreshDayForMysql) }); err != nil {
+	if _, err := c.AddFunc("*/1 * * * *", func() { Run(RefreshDayForMysql) }); err != nil {
 		logrus.Error("将倒计时从同步至redis错误: ", err)
 	}
 	c.Start()

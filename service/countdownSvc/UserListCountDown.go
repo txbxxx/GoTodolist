@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
-	"strings"
 )
 
 type UserListCountDownService struct {
@@ -33,11 +32,8 @@ func (svc UserListCountDownService) List() gin.H {
 	}
 	// 遍历keys,HGetAll返回map[string]string
 	countdownList := make([]map[string]string, 0)
-	var identity string
-	for _, countdown := range keys {
-		// 分割key名获取identity
-		identity = strings.Split(countdown, ":")[2]
-		result := utils.Cache.HGetAll(context.Background(), countdown)
+	for _, key := range keys {
+		result := utils.Cache.HGetAll(context.Background(), key)
 		if err := result.Err(); err != nil {
 			logrus.Error("查询redis中Countdown的数据失败", err)
 			return gin.H{
@@ -51,6 +47,6 @@ func (svc UserListCountDownService) List() gin.H {
 	return gin.H{
 		"code": 200,
 		"msg":  "获取倒计时列表成功！",
-		"data": serializes.CountdownSerializeList(countdownList, identity),
+		"data": serializes.CountdownSerializeList(countdownList),
 	}
 }
