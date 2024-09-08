@@ -20,25 +20,19 @@ import (
 )
 
 type UserCreateCountDownService struct {
-	Name       string    `json:"name" form:"name" binding:"required,max=10"`
-	EndTime    time.Time `json:"endTime" form:"endTime" time_format:"2006-01-02 15:04:05"`
-	StartTime  time.Time `json:"startTime" form:"startTime" binding:"required" time_format:"2006-01-02 15:04:05"`
-	Background string    `json:"background" form:"background"`
+	Name             string    `json:"name" form:"name" binding:"required,max=10"`
+	EndTime          time.Time `json:"endTime" form:"endTime" time_format:"2006-01-02 15:04:05"`
+	StartTime        time.Time `json:"startTime" form:"startTime" binding:"required" time_format:"2006-01-02 15:04:05"`
+	Background       string    `json:"background" form:"background"`
+	CategoryIdentity string    `json:"categoryIdentity" form:"categoryIdentity" binding:"required"`
 }
+
+// TODO 没有设置查询当前用户的倒计时信息，感觉这个类别identity可以在前端获取到，然后创建的时候也只是显示当前用户的
 
 func (svc *UserCreateCountDownService) Create(token string) gin.H {
 	data := model.CountDown{}
-	var num int64
-	// 判断倒计时是否超过50个了
-	if err := utils.DB.Model(&data).Count(&num).Error; err != nil {
-		logrus.Error("查询倒计时数量错误: ", err)
-		return gin.H{"code": -1, "msg": "系统繁忙请稍后再试"}
-	}
-	if num > 50 {
-		return gin.H{"code": -1, "msg": "倒计时数量已满"}
-	}
-	// 查找是否有相同倒计时存在
-	if err := utils.DB.Model(&data).Take(&data, "name = ?", svc.Name).Error; err != nil {
+	// 查找当前分类是否有相同倒计时存在
+	if err := utils.DB.Model(&data).Take(&data, "name = ? AND category_identity = ?", svc.Name, svc.CategoryIdentity).Error; !errors.Is(err, gorm.ErrRecordNotFound) {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return gin.H{"code": -1, "msg": "系统繁忙请稍后再试"}
 		}
@@ -48,7 +42,7 @@ func (svc *UserCreateCountDownService) Create(token string) gin.H {
 	}
 	// 创建对象前置操作
 	startTime, endTime := svc.StartTime.Unix(), svc.EndTime.Unix()
-	// 解析Token
+	// 解析token
 	user, err := utils.AnalyseToken(token)
 	if err != nil {
 		logrus.Error("Token 解析错误：", err.Error())
@@ -56,18 +50,17 @@ func (svc *UserCreateCountDownService) Create(token string) gin.H {
 	}
 	// 不存在则创建对象
 	newCountdown := model.CountDown{
-		Identity:     utils.GenerateUUID(),
-		Name:         svc.Name,
-		StartTime:    startTime,
-		EndTime:      endTime,
-		Background:   "",
-		UserIdentity: user.Identity,
+		Identity:         utils.GenerateUUID(),
+		Name:             svc.Name,
+		StartTime:        startTime,
+		EndTime:          endTime,
+		Background:       "",
+		CategoryIdentity: svc.CategoryIdentity,
 	}
 	// 开启事务
-	err = utils.DB.Transaction(func(tx *gorm.DB) error {
-		return svc.txCreate(tx, err, newCountdown)
-	})
-	if err != nil {
+	if err := utils.DB.Transaction(func(tx *gorm.DB) error {
+		return svc.txCreate(tx, newCountdown, user.Name)
+	}); err != nil {
 		logrus.Error("创建倒计时错误: ", err)
 		return gin.H{"code": -1, "msg": "系统繁忙请稍后再试"}
 	}
@@ -76,9 +69,9 @@ func (svc *UserCreateCountDownService) Create(token string) gin.H {
 }
 
 // txCreate 事务处理创建并同比至redis
-func (svc *UserCreateCountDownService) txCreate(tx *gorm.DB, err error, newCountdown model.CountDown) error {
+func (svc *UserCreateCountDownService) txCreate(tx *gorm.DB, newCountdown model.CountDown, name string) error {
 	//插入数据库
-	if err = tx.Create(&newCountdown).Error; err != nil {
+	if err := tx.Create(&newCountdown).Error; err != nil {
 		logrus.Error("创建倒计时错误: ", err)
 		return err
 	}
@@ -91,19 +84,19 @@ func (svc *UserCreateCountDownService) txCreate(tx *gorm.DB, err error, newCount
 		countdownModel = "OEC"
 		// key用countdown:OEC:{{ Identity }}
 		// 这里需要同步初始时间即可，day表示当前时间和初始时间的差值
-		key := "countdown:" + countdownModel + ":" + newCountdown.Identity
+		key := name + ":countdown:" + countdownModel + ":" + newCountdown.Identity
 		// 计算过去时间oec
-		if _, err := utils.OecCalculate(newCountdown.StartTime, newCountdown.StartTime, key, newCountdown.Background, newCountdown.Name, newCountdown.Identity); err != nil {
+		if err := utils.OecCalculate(newCountdown.StartTime, newCountdown.StartTime, key, newCountdown.Background, newCountdown.Name, newCountdown.Identity); err != nil {
 			return fmt.Errorf("同步至redis失败: %w", err)
 		}
 	} else {
 		// 判断终止时间是否大于开始时间
 		if svc.EndTime.Unix() <= svc.StartTime.Unix() {
-			return fmt.Errorf("终止时间必须大于开始时间: %w", err)
+			return fmt.Errorf("终止时间必须大于开始时间")
 		}
-		key := "countdown:" + countdownModel + ":" + newCountdown.Identity
+		key := name + ":countdown:" + countdownModel + ":" + newCountdown.Identity
 		// FDC
-		if _, err := utils.FdcCalculate(newCountdown.StartTime, newCountdown.StartTime, newCountdown.EndTime, key, newCountdown.Background, newCountdown.Name, newCountdown.Identity); err != nil {
+		if err := utils.FdcCalculate(newCountdown.StartTime, newCountdown.StartTime, newCountdown.EndTime, key, newCountdown.Background, newCountdown.Name, newCountdown.Identity); err != nil {
 			return fmt.Errorf("同步至redis失败: %w", err)
 		}
 	}

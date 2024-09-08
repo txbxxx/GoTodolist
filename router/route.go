@@ -24,19 +24,29 @@ func Router() *gin.Engine {
 		user.POST("/login", control.Login)
 		user.POST("/register", control.Register)
 	}
+	// 倒计时
 	countdown := httpServer.Group("/countdown")
 	{
-		countdown.POST("/createCountDown", control.CreateCountdown)
-		countdown.DELETE("/delCountDown", control.DelCountdown)
-		countdown.GET("/listCountDown", control.ListCountDown)
-		countdown.POST("/modifyCountDown", control.ModifyCountDown)
-		countdown.GET("/searchCountDown", control.SearchCountDown)
+		countdown.POST("/create", control.CreateCountdown)
+		countdown.DELETE("/del", control.DelCountdown)
+		countdown.GET("/list", control.ListCountDown)
+		countdown.PUT("/modify", control.ModifyCountDown)
+		countdown.GET("/search", control.SearchCountDown)
+		countdown.POST("/upload", control.UploadBackground)
+		countdown.GET("/detail/:identity", control.DetailCountDown)
 	}
+	// 回收站
 	recycle := httpServer.Group("/recycle")
 	{
 		recycle.GET("/listCountDown", control.RecycleListCountDown)
 		recycle.POST("/recoverCountDown", control.RecoverCountDown)
 		recycle.GET("/recoverCountDown", control.RecoverCountDown)
+	}
+	// 分类
+	category := httpServer.Group("/category")
+	{
+		category.POST("/create", control.CreateCategory)
+		category.GET("/list", control.ListCategory)
 	}
 	return httpServer
 }

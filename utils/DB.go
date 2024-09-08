@@ -65,7 +65,7 @@ func DBUntil(DBUser, DBPwd, DBAddr, DBName, TablePrefix string) {
 
 // CreateTable 使用自动迁移创建表
 func CreateTable() {
-	err := DB.AutoMigrate(&model.User{}, &model.CountDown{})
+	err := DB.AutoMigrate(&model.User{}, &model.CountDown{}, &model.Category{})
 	if err != nil {
 		log.Println("创建表失败", err.Error())
 		return

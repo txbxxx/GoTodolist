@@ -12,7 +12,6 @@ import (
 	serializes "GoToDoList/serialized"
 	"GoToDoList/utils"
 	"context"
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"strconv"
@@ -20,7 +19,7 @@ import (
 )
 
 type UserSearchCountDownService struct {
-	Name string `json:"name" form:"name"`
+	Name string `json:"name" form:"name" binding:"required,max=10"`
 	Day  int    `json:"day" form:"day"`
 }
 
@@ -52,19 +51,21 @@ func (svc UserSearchCountDownService) Search() gin.H {
 		if _, ok := result["name"]; !ok {
 			continue
 		}
-
+		// 将day转换为int
 		day, err := strconv.Atoi(result["day"])
-		fmt.Println(day)
 		if err != nil {
 			logrus.Error("UserSearchCountDownService: 字符串转换为int失败", err)
 			return gin.H{"code": -1, "msg": "系统繁忙请稍后在试"}
 		}
+		// 判断是否为空
 		if len(svc.Name) != 0 {
+			// 判断是否包含svc.Name
 			if strings.Contains(result["name"], svc.Name) || day == svc.Day {
 				countdownList = append(countdownList, result)
 				continue
 			}
 		} else if svc.Day == day {
+			// 满足天数
 			countdownList = append(countdownList, result)
 			continue
 		}

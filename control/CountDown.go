@@ -32,7 +32,7 @@ func DelCountdown(c *gin.Context) {
 	var svc countdownSvc.UserDelCountDownService
 	err := c.ShouldBind(&svc)
 	if err == nil {
-		c.JSON(200, svc.Del())
+		c.JSON(200, svc.Del(c.GetHeader("Token")))
 	} else {
 		c.JSON(200, gin.H{
 			"error": err.Error(),
@@ -58,7 +58,7 @@ func ModifyCountDown(c *gin.Context) {
 	var svc countdownSvc.UserModifyCountDownService
 	err := c.ShouldBind(&svc)
 	if err == nil {
-		c.JSON(200, svc.Modify())
+		c.JSON(200, svc.Modify(c.GetHeader("token")))
 	} else {
 		c.JSON(200, gin.H{
 			"error": err.Error(),
@@ -71,6 +71,29 @@ func SearchCountDown(c *gin.Context) {
 	err := c.ShouldBind(&svc)
 	if err == nil {
 		c.JSON(200, svc.Search())
+	} else {
+		c.JSON(200, gin.H{
+			"error": err.Error(),
+		})
+	}
+}
+
+func UploadBackground(c *gin.Context) {
+	var svc countdownSvc.BackgroundUploadSvc
+	err := c.ShouldBind(&svc)
+	if err == nil {
+		c.JSON(200, svc.PUT())
+	} else {
+		c.JSON(200, gin.H{
+			"error": err.Error(),
+		})
+	}
+}
+
+func DetailCountDown(c *gin.Context) {
+	var svc countdownSvc.UserDetailCountDownService
+	if err := c.ShouldBind(&svc); err == nil {
+		c.JSON(200, svc.Detail(c.Param("identity")))
 	} else {
 		c.JSON(200, gin.H{
 			"error": err.Error(),

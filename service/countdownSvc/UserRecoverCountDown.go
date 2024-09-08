@@ -18,7 +18,7 @@ import (
 )
 
 type UserRecoverCountDownService struct {
-	Identity string `json:"identity" form:"identity"`
+	Identity string `json:"identity" form:"identity" binding:"required"`
 }
 
 // RecoverCountDown 恢复倒计时数据

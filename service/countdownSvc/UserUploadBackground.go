@@ -25,8 +25,9 @@ type BackgroundUploadSvc struct {
 	FileName string `json:"file_name" form:"file_name"`
 }
 
-// TODO 写前端验证
-func (service *BackgroundUploadSvc) Post() gin.H {
+// TODO 写前端 验证
+
+func (service *BackgroundUploadSvc) PUT() gin.H {
 	token, err := utils.CosToken()
 	if err != nil {
 		logrus.Error("获取临时密钥失败", err.Error())
@@ -47,7 +48,7 @@ func (service *BackgroundUploadSvc) Post() gin.H {
 	// 对象键（Key）是对象在存储桶中的唯一标识。
 	// 例如，在对象的访问域名 `examplebucket-1250000000.cos.COS_REGION.myqcloud.com/test/objectPut.go` 中，对象键为 test/objectPut.go
 	//key := "upload/video/" + service.FileName
-	key := "upload/video/" + utils.GenerateUUID() + ext
+	key := "upload/background/" + utils.GenerateUUID() + ext
 	opt := &cos.PresignedURLOptions{
 		Query: &url.Values{},
 		Header: &http.Header{
@@ -58,7 +59,7 @@ func (service *BackgroundUploadSvc) Post() gin.H {
 
 	//添加session
 	opt.Query.Add("x-cos-security-token", token.SessionToken)
-	//获取上传文件预签名Url
+	//获取上传文件预签名Url 通过前端获取并上传
 	putURL, err := c.Object.GetPresignedURL(context.Background(), http.MethodPut, key, token.TmpSecretID, token.TmpSecretKey, time.Hour, opt)
 	if err != nil {
 		logrus.Error("上传失败", err.Error())

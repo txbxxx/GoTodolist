@@ -27,11 +27,13 @@ type UserModifyCountDownService struct {
 	Background string    `json:"background" form:"background"`
 }
 
-func (svc *UserModifyCountDownService) Modify() gin.H {
+// TODO 修改数据时如果同步到redis，但是刚好在准备改的时候有节点可能会读取，这样就读取的是旧数据了
+
+func (svc *UserModifyCountDownService) Modify(token string) gin.H {
 	// 查询是否存在于数据库中
 	countdown := &model.CountDown{}
 	var count int64
-	if err := utils.DB.Model(&model.CountDown{}).Where("identity = ?", svc.Identity).Or("name = ?", svc.Name).Take(countdown).Count(&count).Error; err != nil {
+	if err := utils.DB.Model(&model.CountDown{}).Where("identity = ?", svc.Identity).Take(countdown).Count(&count).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return gin.H{
 				"code": -1,
@@ -55,7 +57,7 @@ func (svc *UserModifyCountDownService) Modify() gin.H {
 		}
 	}
 	// 删除原本同步在redis的数据
-	if err := utils.DelCountDownForRedis(svc.Identity); err != nil {
+	if err := DelCountDownForRedis(svc.Identity); err != nil {
 		logrus.Error(err)
 		return gin.H{
 			"code": -1,

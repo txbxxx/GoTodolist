@@ -12,7 +12,6 @@ import (
 	serializes "GoToDoList/serialized"
 	"GoToDoList/utils"
 	"context"
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 )
@@ -21,8 +20,9 @@ type UserListCountDownService struct {
 }
 
 func (svc UserListCountDownService) List() gin.H {
+	ctx := context.Background()
 	// 从redis中读取countdown信息
-	keys, _, err := utils.Cache.Scan(context.Background(), 0, "countdown:*", 50).Result()
+	keys, _, err := utils.Cache.Scan(ctx, 0, "countdown:*", 50).Result()
 	if err != nil {
 		logrus.Error("查询redis中Countdown的数据失败", err)
 		return gin.H{
@@ -31,19 +31,10 @@ func (svc UserListCountDownService) List() gin.H {
 		}
 	}
 	// 遍历keys,HGetAll返回map[string]string
-	countdownList := make([]map[string]string, 0)
-	for _, key := range keys {
-		result := utils.Cache.HGetAll(context.Background(), key)
-		if err := result.Err(); err != nil {
-			logrus.Error("查询redis中Countdown的数据失败", err)
-			return gin.H{
-				"code": -1,
-				"msg":  "系统繁忙请稍后再试",
-			}
-		}
-		countdownList = append(countdownList, result.Val())
+	countdownList, err := utils.ListFormRedis(ctx, keys)
+	if err != nil {
+		return gin.H{"code": -1, "msg": "系统繁忙请稍后再试"}
 	}
-	fmt.Println(countdownList)
 	return gin.H{
 		"code": 200,
 		"msg":  "获取倒计时列表成功！",
