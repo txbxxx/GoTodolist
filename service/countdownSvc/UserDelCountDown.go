@@ -12,6 +12,7 @@ import (
 	"GoToDoList/model"
 	"GoToDoList/utils"
 	"context"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 )
@@ -20,7 +21,13 @@ type UserDelCountDownService struct {
 	Identity string `form:"identity" json:"identity" binding:"required"`
 }
 
-func (svc *UserDelCountDownService) Del() gin.H {
+func (svc *UserDelCountDownService) Del(token string) gin.H {
+	// 解析token
+	user, err := utils.AnalyseToken(token)
+	if err != nil {
+		logrus.Error("Token 解析错误：", err.Error())
+		return gin.H{"code": -1, "msg": "登录错误"}
+	}
 	// 查询倒计时是否存在
 	var countdown model.CountDown
 	if err := utils.DB.Model(&model.CountDown{}).Where("identity = ?", svc.Identity).Take(&countdown).Error; err != nil {
@@ -39,8 +46,9 @@ func (svc *UserDelCountDownService) Del() gin.H {
 	// 存在则删除
 	// 将redis中同步的此倒计时的数据加入delete回收站
 	// 查询当前删除的数据
-	keys, _ := utils.Cache.Scan(context.Background(), 0, "countdown:*:"+countdown.Identity, 10).Val()
-	err := utils.AddCountDownRecycle(keys[0], countdown.Identity)
+	key := user.Name + ":countdown:*:" + countdown.Identity
+	keys, _ := utils.Cache.Scan(context.Background(), 0, key, 10).Val()
+	err = utils.AddCountDownRecycle(keys[0], countdown.Identity)
 	if err != nil {
 		logrus.Error("到达的倒计时加入回收站失败，", err)
 		return gin.H{
@@ -52,4 +60,19 @@ func (svc *UserDelCountDownService) Del() gin.H {
 		"code": 200,
 		"msg":  "删除成功倒计时成功！！",
 	}
+}
+
+// DelCountDownForRedis 从redis中删除一条数据
+// 从redis中删除数据，并不加入回收站
+func DelCountDownForRedis(identity string) error {
+	keys, _, err := utils.Cache.Scan(context.Background(), 0, "countdown:*:"+identity, 1).Result()
+	if err != nil || len(keys) == 0 {
+		return fmt.Errorf("要删除的数据不存在 %v", err)
+	}
+	// 删除
+	err = utils.Cache.Del(context.Background(), keys...).Err()
+	if err != nil {
+		return fmt.Errorf("删除redis数据失败: %v", err)
+	}
+	return nil
 }

@@ -52,12 +52,12 @@ func CountdownSerializeSingleModel(countdown model.CountDown) CountdownSerialize
 	var day float64
 	var err error
 	if countdown.EndTime > 0 {
-		day, err = utils.OecCalculate(time.Now().Unix(), countdown.StartTime, keyPrefix+"OEC"+countdown.Identity, countdown.Background, countdown.Name, countdown.Identity)
+		err = utils.OecCalculate(time.Now().Unix(), countdown.StartTime, keyPrefix+"OEC"+countdown.Identity, countdown.Background, countdown.Name, countdown.Identity)
 		if err != nil {
 			logrus.Error("计算日期错误:", err)
 		}
 	} else {
-		day, err = utils.FdcCalculate(time.Now().Unix(), countdown.StartTime, countdown.EndTime, keyPrefix+"OEC"+countdown.Identity, countdown.Background, countdown.Name, countdown.Identity)
+		err = utils.FdcCalculate(time.Now().Unix(), countdown.StartTime, countdown.EndTime, keyPrefix+"OEC"+countdown.Identity, countdown.Background, countdown.Name, countdown.Identity)
 		if err != nil {
 			logrus.Error("计算日期错误:", err)
 		}
