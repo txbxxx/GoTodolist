@@ -31,6 +31,6 @@ func RecoverCountDown(c *gin.Context) {
 			"err": err,
 		})
 	} else {
-		c.JSON(200, svc.RecoverCountDown())
+		c.JSON(200, svc.RecoverCountDown(c.GetHeader("Authorization")))
 	}
 }

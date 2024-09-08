@@ -22,7 +22,13 @@ type UserRecoverCountDownService struct {
 }
 
 // RecoverCountDown 恢复倒计时数据
-func (svc *UserRecoverCountDownService) RecoverCountDown() gin.H {
+func (svc *UserRecoverCountDownService) RecoverCountDown(token string) gin.H {
+	// 解析token
+	user, err := utils.AnalyseToken(token)
+	if err != nil {
+		logrus.Error("Token 解析错误：", err.Error())
+		return gin.H{"code": -1, "msg": "登录错误"}
+	}
 	// 先查找被删除的数据
 	if err := utils.DB.Unscoped().Model(&model.CountDown{}).Where("identity = ?", svc.Identity).Update("DeletedAt", nil).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -38,7 +44,7 @@ func (svc *UserRecoverCountDownService) RecoverCountDown() gin.H {
 		return gin.H{"code": -1, "msg": "系统繁忙请稍后在试"}
 	}
 	// 从数据中同步至redis
-	if err := utils.RefreshDayForMysql(); err != nil {
+	if err := utils.RefreshDayForMysql(user.Name); err != nil {
 		logrus.Error("RecoverCountDown: 从数据中同步至redis失败", err)
 		return gin.H{"code": -1, "msg": "系统繁忙请稍后在试"}
 	}

@@ -198,10 +198,12 @@ func RefOEC() error {
 	return nil
 }
 
+//TODO 查询倒计时不能查询某个用户的
+
 // RefreshDayForMysql 从mysql中读取数据刷新倒计时
 // 从redis读取倒计时列表
 // 将倒计时列表中的数据同步至redis
-func RefreshDayForMysql() error {
+func RefreshDayForMysql(userName string) error {
 	countdown := make([]model.CountDown, 1)
 	if err := DB.Model(&model.CountDown{}).Find(&countdown).Error; err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -211,7 +213,7 @@ func RefreshDayForMysql() error {
 	// 当前时间戳
 	now := time.Now().Unix()
 	for _, count := range countdown {
-		key := OECCountdownPrefix + count.Identity
+		key := userName + OECCountdownPrefix + count.Identity
 		if count.EndTime <= 0 {
 			// 计算过去时间oec
 			err := OecCalculate(now, count.StartTime, key, count.Background, count.Name, count.Identity)

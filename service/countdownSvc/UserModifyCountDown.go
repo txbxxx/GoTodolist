@@ -30,6 +30,12 @@ type UserModifyCountDownService struct {
 // TODO 修改数据时如果同步到redis，但是刚好在准备改的时候有节点可能会读取，这样就读取的是旧数据了
 
 func (svc *UserModifyCountDownService) Modify(token string) gin.H {
+	// 解析token
+	user, err := utils.AnalyseToken(token)
+	if err != nil {
+		logrus.Error("Token 解析错误：", err.Error())
+		return gin.H{"code": -1, "msg": "登录错误"}
+	}
 	// 查询是否存在于数据库中
 	countdown := &model.CountDown{}
 	var count int64
@@ -65,7 +71,7 @@ func (svc *UserModifyCountDownService) Modify(token string) gin.H {
 		}
 	}
 	// 同步至redis
-	if err := utils.RefreshDayForMysql(); err != nil {
+	if err := utils.RefreshDayForMysql(user.Name); err != nil {
 		logrus.Error("同步至redis", err)
 		return gin.H{
 			"code": -1,
