@@ -54,6 +54,14 @@ func (svc *UserModifyCountDownService) Modify(token string) gin.H {
 	}
 	// 修改倒计时
 	countdown.Name, countdown.EndTime, countdown.StartTime, countdown.Background = svc.Name, svc.EndTime.Unix(), svc.StartTime.Unix(), svc.Background
+	// 判断终止时间是否大于开始时间
+	if svc.EndTime.Unix() <= svc.StartTime.Unix() {
+		logrus.Error("终止时间必须大于开始时间", err)
+		return gin.H{
+			"code": -1,
+			"msg":  "终止时间必须大于开始时间",
+		}
+	}
 	// 保存
 	if err := utils.DB.Save(countdown).Error; err != nil {
 		logrus.Error("保存倒计时失败", err)
@@ -71,11 +79,31 @@ func (svc *UserModifyCountDownService) Modify(token string) gin.H {
 		}
 	}
 	// 同步至redis
-	if err := utils.RefreshDayForMysql(user.Name); err != nil {
-		logrus.Error("同步至redis", err)
-		return gin.H{
-			"code": -1,
-			"msg":  "系统繁忙请稍后再试",
+	countdownModel := "FDC"
+	// 如果没有填写endTime的就是OEC(那么endTime就是int64的最小数)模式填写了就是FDC
+	if countdown.EndTime < 0 {
+		// OEC模式
+		countdownModel = "OEC"
+		// key用countdown:OEC:{{ Identity }}
+		// 这里需要同步初始时间即可，day表示当前时间和初始时间的差值
+		key := user.Name + ":countdown:" + countdownModel + ":" + countdown.Identity
+		// 计算过去时间oec
+		if err := utils.OecCalculate(countdown.StartTime, countdown.StartTime, key, countdown.Background, countdown.Name, countdown.Identity); err != nil {
+			logrus.Error("同步至redis失败", err)
+			return gin.H{
+				"code": -1,
+				"msg":  "系统繁忙请稍后再试",
+			}
+		}
+	} else {
+		key := user.Name + ":countdown:" + countdownModel + ":" + countdown.Identity
+		// FDC
+		if err := utils.FdcCalculate(countdown.StartTime, countdown.StartTime, countdown.EndTime, key, countdown.Background, countdown.Name, countdown.Identity); err != nil {
+			logrus.Error("同步至redis失败", err)
+			return gin.H{
+				"code": -1,
+				"msg":  "系统繁忙请稍后再试",
+			}
 		}
 	}
 	return gin.H{

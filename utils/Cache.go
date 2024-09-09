@@ -11,11 +11,9 @@ package utils
 import (
 	"GoToDoList/model"
 	"context"
-	"errors"
 	"fmt"
 	"github.com/go-redis/redis/v8"
 	"github.com/sirupsen/logrus"
-	"gorm.io/gorm"
 	"math"
 	"math/rand"
 	"strconv"
@@ -104,6 +102,8 @@ func OecCalculate(now, startTime int64, key, background, name, identity string) 
 	if err := Cache.Expire(ctx, key, duration+random).Err(); err != nil {
 		return fmt.Errorf("设置过期时间失败: %v", err)
 	}
+	//添加成功则添+1
+	Cache.IncrBy(ctx, name+":countdown_num", 1)
 	return nil
 }
 
@@ -124,6 +124,7 @@ func FdcCalculate(now, starTime, endTime int64, key, background, name, identity 
 	if err := Cache.Expire(ctx, key, duration+random).Err(); err != nil {
 		return fmt.Errorf("设置过期时间失败: %v", err)
 	}
+	Cache.IncrBy(ctx, name+":countdown_num", 1)
 	return nil
 }
 
@@ -199,48 +200,6 @@ func RefOEC() error {
 }
 
 //TODO 查询倒计时不能查询某个用户的
-
-// RefreshDayForMysql 从mysql中读取数据刷新倒计时
-// 从redis读取倒计时列表
-// 将倒计时列表中的数据同步至redis
-func RefreshDayForMysql(userName string) error {
-	countdown := make([]model.CountDown, 1)
-	if err := DB.Model(&model.CountDown{}).Find(&countdown).Error; err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return fmt.Errorf("查询倒计时失败: %v", err)
-		}
-	}
-	// 当前时间戳
-	now := time.Now().Unix()
-	for _, count := range countdown {
-		key := userName + OECCountdownPrefix + count.Identity
-		if count.EndTime <= 0 {
-			// 计算过去时间oec
-			err := OecCalculate(now, count.StartTime, key, count.Background, count.Name, count.Identity)
-			if err != nil {
-				return err
-			}
-		} else {
-			key = FDCCountdownPrefix + count.Identity
-			// 判断当前日期时间戳是否大于结束日期时间戳
-			if now >= count.EndTime {
-				// 大于则执行
-				err := AddCountDownRecycle(key, count.Identity)
-				if err != nil {
-					return err
-				}
-				logrus.Info("到达的倒计时加入回收站成功")
-				continue
-			}
-			//FDC
-			// 如果没有大于，就计算还有多少天，使用结束时间减去现在时间
-			if err := FdcCalculate(now, count.StartTime, count.EndTime, key, count.Background, count.Name, count.Identity); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
 
 // AddCountDownRecycle 添加至回收站
 // 将倒计时加上前缀delete: 表示加入回收站了

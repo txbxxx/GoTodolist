@@ -1,6 +1,6 @@
 /**
  * @Author tanchang
- * @Description //TODO
+ * @Description 认证
  * @Date 2024/7/11 20:12
  * @File:  authAdmin
  * @Software: GoLand

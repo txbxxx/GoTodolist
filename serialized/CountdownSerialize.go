@@ -10,8 +10,7 @@ package serializes
 
 import (
 	"GoToDoList/model"
-	"GoToDoList/utils"
-	"github.com/sirupsen/logrus"
+	"math"
 	"strconv"
 	"time"
 )
@@ -48,24 +47,38 @@ func CountdownSerializeSingle(countdown map[string]string) CountdownSerialize {
 
 // CountdownSerializeSingleModel 单个序列化
 func CountdownSerializeSingleModel(countdown model.CountDown) CountdownSerialize {
-	keyPrefix := "countdown:"
 	var day float64
-	var err error
+	now := time.Now().Unix()
 	if countdown.EndTime > 0 {
-		err = utils.OecCalculate(time.Now().Unix(), countdown.StartTime, keyPrefix+"OEC"+countdown.Identity, countdown.Background, countdown.Name, countdown.Identity)
-		if err != nil {
-			logrus.Error("计算日期错误:", err)
-		}
+		day = float64(now-countdown.StartTime) / 86400
 	} else {
-		err = utils.FdcCalculate(time.Now().Unix(), countdown.StartTime, countdown.EndTime, keyPrefix+"OEC"+countdown.Identity, countdown.Background, countdown.Name, countdown.Identity)
-		if err != nil {
-			logrus.Error("计算日期错误:", err)
-		}
+		day = float64(countdown.EndTime-now) / 86400
 	}
 	return CountdownSerialize{
 		Identity:   countdown.Identity,
 		Name:       countdown.Name,
-		Day:        strconv.FormatFloat(day, 'f', 2, 64),
+		Day:        strconv.FormatFloat(math.Ceil(day), 'f', 2, 64),
 		Background: countdown.Background,
 	}
+}
+
+// CountdownSerializeListModel 单个序列化
+func CountdownSerializeListModel(countdowns []model.CountDown) []CountdownSerialize {
+	var countdownList []CountdownSerialize
+	for _, countdown := range countdowns {
+		var day float64
+		now := time.Now().Unix()
+		if countdown.EndTime > 0 {
+			day = float64(now-countdown.StartTime) / 86400
+		} else {
+			day = float64(countdown.EndTime-now) / 86400
+		}
+		countdownList = append(countdownList, CountdownSerialize{
+			Identity:   countdown.Identity,
+			Name:       countdown.Name,
+			Day:        strconv.FormatFloat(math.Ceil(day), 'f', 2, 64),
+			Background: countdown.Background,
+		})
+	}
+	return countdownList
 }

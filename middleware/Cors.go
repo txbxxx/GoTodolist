@@ -1,6 +1,6 @@
 /**
  * @Author tanchang
- * @Description //TODO
+ * @Description 跨域
  * @Date 2024/7/11 15:31
  * @File:  Cors
  * @Software: GoLand
