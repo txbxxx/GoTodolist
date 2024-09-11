@@ -86,7 +86,7 @@ func RefreshDayForMysql(userName string) ([]model.CountDown, error) {
 		key := userName + utils.OECCountdownPrefix + count.Identity
 		if count.EndTime <= 0 {
 			// 计算过去时间oec
-			err := utils.OecCalculate(now, count.StartTime, key, count.Background, count.Name, count.Identity)
+			err := utils.OecCalculate(now, count, key)
 			if err != nil {
 				return nil, err
 			}
@@ -104,7 +104,7 @@ func RefreshDayForMysql(userName string) ([]model.CountDown, error) {
 			}
 			//FDC
 			// 如果没有大于，就计算还有多少天，使用结束时间减去现在时间
-			if err := utils.FdcCalculate(now, count.StartTime, count.EndTime, key, count.Background, count.Name, count.Identity); err != nil {
+			if err := utils.FdcCalculate(now, count, key); err != nil {
 				return nil, err
 			}
 		}

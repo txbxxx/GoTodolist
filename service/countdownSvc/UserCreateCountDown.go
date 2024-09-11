@@ -75,28 +75,31 @@ func (svc *UserCreateCountDownService) txCreate(tx *gorm.DB, newCountdown model.
 		logrus.Error("创建倒计时错误: ", err)
 		return err
 	}
+	return isOecORFdcModel(newCountdown, name)
+}
 
-	// 同步至redis
-	countdownModel := "FDC"
+func isOecORFdcModel(countdown model.CountDown, name string) error {
+	now := time.Now().Unix()
 	// 如果没有填写endTime的就是OEC(那么endTime就是int64的最小数)模式填写了就是FDC
-	if newCountdown.EndTime < 0 {
+	if countdown.EndTime < 0 {
 		// OEC模式
-		countdownModel = "OEC"
 		// key用countdown:OEC:{{ Identity }}
 		// 这里需要同步初始时间即可，day表示当前时间和初始时间的差值
-		key := name + ":countdown:" + countdownModel + ":" + newCountdown.Identity
+		key := name + ":countdown:OEC:" + countdown.Identity
 		// 计算过去时间oec
-		if err := utils.OecCalculate(newCountdown.StartTime, newCountdown.StartTime, key, newCountdown.Background, newCountdown.Name, newCountdown.Identity); err != nil {
+		if err := utils.OecCalculate(now, countdown, key); err != nil {
 			return fmt.Errorf("同步至redis失败: %w", err)
 		}
 	} else {
 		// 判断终止时间是否大于开始时间
-		if svc.EndTime.Unix() <= svc.StartTime.Unix() {
+		// 将int64转换为time.Time
+		if countdown.EndTime <= countdown.StartTime {
 			return fmt.Errorf("终止时间必须大于开始时间")
 		}
-		key := name + ":countdown:" + countdownModel + ":" + newCountdown.Identity
+		key := name + ":countdown:FDC:" + countdown.Identity
 		// FDC
-		if err := utils.FdcCalculate(newCountdown.StartTime, newCountdown.StartTime, newCountdown.EndTime, key, newCountdown.Background, newCountdown.Name, newCountdown.Identity); err != nil {
+		//if err := utils.FdcCalculate(newCountdown.StartTime, newCountdown.StartTime, newCountdown.EndTime, key, newCountdown.Background, newCountdown.Name, name, newCountdown.Identity); err != nil {
+		if err := utils.FdcCalculate(now, countdown, key); err != nil {
 			return fmt.Errorf("同步至redis失败: %w", err)
 		}
 	}

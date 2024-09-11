@@ -45,7 +45,7 @@ func ListCountDown(c *gin.Context) {
 	var svc countdownSvc.UserListCountDownService
 	err := c.ShouldBind(&svc)
 	if err == nil {
-		c.JSON(200, svc.List())
+		c.JSON(200, svc.List(c.GetHeader("token")))
 	} else {
 		c.JSON(200, gin.H{
 			"error": err.Error(),

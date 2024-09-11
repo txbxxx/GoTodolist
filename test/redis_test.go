@@ -10,10 +10,8 @@ package test
 
 import (
 	"context"
-	"fmt"
 	"github.com/go-redis/redis/v8"
 	"github.com/sirupsen/logrus"
-	"strconv"
 	"testing"
 )
 
@@ -29,7 +27,6 @@ func TestRedis(t *testing.T) {
 	if err != nil {
 		logrus.Error("redis连接失败！", err)
 	}
-	m := map[string]string{"1": "1"}
-	i, err := strconv.Atoi(m["2"])
-	fmt.Println(i)
+	keys, _, err := Cache.Scan(context.Background(), 0, "admin:countdown:FDC:d1bba3b7-da6a-494f-b4ac-8ba67edd5d65", 3).Result()
+	logrus.Println(keys)
 }

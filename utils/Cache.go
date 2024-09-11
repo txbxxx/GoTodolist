@@ -88,11 +88,21 @@ func ListFormRedis(ctx context.Context, keys []string) ([]map[string]string, err
 // OecCalculate 计算Oec
 // FDC计算方法是当前期戳-开始日期的时间戳 最后在/86400 获得天数
 // 使用Ceil向上取整 0.1 天也是1天
-func OecCalculate(now, startTime int64, key, background, name, identity string) error {
+func OecCalculate(now int64, countdown model.CountDown, key string) error {
 	ctx := context.Background()
-	day := float64(now-startTime) / 86400
+	// 获取username
+	userName := strings.Split(key, ":")[0]
+	day := float64(now-countdown.StartTime) / 86400
 	// 将倒计时同步至redis，时间则向上取整
-	if _, err := Cache.HSet(ctx, key, map[string]any{"startTime": startTime, "day": math.Ceil(day), "background": background, "name": name, "identity": identity}).Result(); err != nil {
+	if _, err := Cache.HSet(ctx, key,
+		map[string]any{
+			"startTime":        countdown.StartTime,
+			"day":              math.Ceil(day),
+			"background":       countdown.Background,
+			"name":             countdown.Name,
+			"identity":         countdown.Identity,
+			"categoryIdentity": countdown.CategoryIdentity,
+		}).Result(); err != nil {
 		return fmt.Errorf("同步redis失败: %v", err)
 	}
 	// 设置过期时间
@@ -103,18 +113,29 @@ func OecCalculate(now, startTime int64, key, background, name, identity string) 
 		return fmt.Errorf("设置过期时间失败: %v", err)
 	}
 	//添加成功则添+1
-	Cache.IncrBy(ctx, name+":countdown_num", 1)
+	Cache.IncrBy(ctx, userName+":countdown_num", 1)
 	return nil
 }
 
 // FdcCalculate 计算Fdc
 // FDC计算方法是结束日期戳-当前日期的时间戳 最后在/86400 获得天数
 // 使用Ceil向上取整 0.1 天也是1天
-func FdcCalculate(now, starTime, endTime int64, key, background, name, identity string) error {
+func FdcCalculate(now int64, countdown model.CountDown, key string) error {
 	ctx := context.Background()
-	day := float64(endTime-now) / 86400
+	day := float64(countdown.EndTime-now) / 86400
+	// 获取username
+	userName := strings.Split(key, ":")[0]
 	// 将倒计时同步至redis，时间则向上取整
-	if _, err := Cache.HSet(ctx, key, map[string]any{"endTime": endTime, "starTime": starTime, "day": math.Ceil(day), "background": background, "name": name, "identity": identity}).Result(); err != nil {
+	if _, err := Cache.HSet(ctx, key,
+		map[string]any{
+			"endTime":          countdown.EndTime,
+			"starTime":         countdown.StartTime,
+			"day":              math.Ceil(day),
+			"background":       countdown.Background,
+			"name":             countdown.Name,
+			"identity":         countdown.Identity,
+			"categoryIdentity": countdown.CategoryIdentity,
+		}).Result(); err != nil {
 		return fmt.Errorf("同步redis失败: %v", err)
 	}
 	// 设置过期时间
@@ -124,7 +145,7 @@ func FdcCalculate(now, starTime, endTime int64, key, background, name, identity 
 	if err := Cache.Expire(ctx, key, duration+random).Err(); err != nil {
 		return fmt.Errorf("设置过期时间失败: %v", err)
 	}
-	Cache.IncrBy(ctx, name+":countdown_num", 1)
+	Cache.IncrBy(ctx, userName+":countdown_num", 1)
 	return nil
 }
 
@@ -150,7 +171,7 @@ func RefFDC() error {
 		endTime, _ := strconv.ParseInt(result["endTime"], 10, 64)
 		startTime, _ := strconv.ParseInt(result["start"], 10, 64)
 		//取出identity FDC的格式为 countdown:FDC:{{ identity }}
-		identity := strings.Split(FDC, "countdown:FDC:")[1]
+		identity := strings.Split(FDC, "*:countdown:FDC:")[1]
 		// 判断当前日期时间戳是否大于结束日期时间戳
 		if now >= endTime {
 			//将已经到达的倒计时加入回收站
@@ -161,8 +182,16 @@ func RefFDC() error {
 			logrus.Info("到达的倒计时加入回收站成功")
 			continue
 		}
-
-		if err := FdcCalculate(now, startTime, endTime, FDC, result["background"], result["name"], identity); err != nil {
+		// 创建倒计时对象
+		count := model.CountDown{
+			Identity:         identity,
+			EndTime:          endTime,
+			StartTime:        startTime,
+			Name:             result["name"],
+			Background:       result["background"],
+			CategoryIdentity: result["categoryIdentity"],
+		}
+		if err := FdcCalculate(now, count, FDC); err != nil {
 			return err
 		}
 	}
@@ -177,13 +206,12 @@ func RefOEC() error {
 	// 查询redis中OEC的数据
 	FDCKeys, _, err := Cache.Scan(context.Background(), 0, OECCountdownPrefix+"*", 50).Result()
 	if err != nil {
-		logrus.Error("查询redis中OEC的数据失败", err)
 		return fmt.Errorf(err.Error())
 	}
 
 	for _, OEC := range FDCKeys {
 		// 获取identity值
-		identity := strings.Split(OEC, "countdown:OEC:")[1]
+		identity := strings.Split(OEC, "*:countdown:OEC:")[1]
 		// 获取当前OEC key里面的全部字段，返回一个字符串map
 		result, err := Cache.HGetAll(context.Background(), OEC).Result()
 		if err != nil {
@@ -191,8 +219,16 @@ func RefOEC() error {
 		}
 		// 转换为int64
 		startTime, _ := strconv.ParseInt(result["startTime"], 10, 64)
+		// 创建对象
+		count := model.CountDown{
+			Identity:         identity,
+			StartTime:        startTime,
+			Name:             result["name"],
+			Background:       result["background"],
+			CategoryIdentity: result["categoryIdentity"],
+		}
 		// 计算过去时间
-		if err := OecCalculate(now, startTime, OEC, result["background"], result["name"], identity); err != nil {
+		if err := OecCalculate(now, count, OEC); err != nil {
 			return err
 		}
 	}

@@ -44,7 +44,7 @@ func (svc *UserRecoverCountDownService) RecoverCountDown(token string) gin.H {
 		return gin.H{"code": -1, "msg": "系统繁忙请稍后在试"}
 	}
 	// 从数据中同步至redis
-	if err := utils.RefreshDayForMysql(user.Name); err != nil {
+	if _, err := RefreshDayForMysql(user.Name); err != nil {
 		logrus.Error("RecoverCountDown: 从数据中同步至redis失败", err)
 		return gin.H{"code": -1, "msg": "系统繁忙请稍后在试"}
 	}
