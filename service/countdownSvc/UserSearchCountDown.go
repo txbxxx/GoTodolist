@@ -19,15 +19,21 @@ import (
 )
 
 type UserSearchCountDownService struct {
-	Name string `json:"name" form:"name" binding:"required,max=10"`
+	Name string `json:"name" form:"name" binding:"max=10"`
 	Day  int    `json:"day" form:"day"`
 }
 
 // Search 从redis中搜索
-func (svc UserSearchCountDownService) Search() gin.H {
+func (svc UserSearchCountDownService) Search(token string) gin.H {
+	// 解析token
+	user, err := utils.AnalyseToken(token)
+	if err != nil {
+		logrus.Error("Token 解析错误：", err.Error())
+		return gin.H{"code": -1, "msg": "登录错误"}
+	}
 	ctx := context.Background()
 	// 使用Scan从redis里面读取倒计时中的全部信息
-	keys, _, err := utils.Cache.Scan(ctx, 0, "countdown:*", 50).Result()
+	keys, _, err := utils.Cache.Scan(ctx, 0, user.Name+":countdown:*", 50).Result()
 	if err != nil {
 		logrus.Error("UserSearchCountDownService: 从redis查找所有倒计时数据失败", err)
 		return gin.H{"code": -1, "msg": "系统繁忙请稍后在试"}

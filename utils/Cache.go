@@ -52,7 +52,7 @@ func RedisUtils(RDBAddr, RDBPwd, RDBDefaultDB string) {
 // DeleteForRecycle
 // 从回收站删除一条数据
 func DeleteForRecycle(identity string) error {
-	keys, _, err := Cache.Scan(context.Background(), 0, DELCountdownPrefix+"*"+identity, 1).Result()
+	keys, _, err := Cache.Scan(context.Background(), 0, "*"+DELCountdownPrefix+"*"+identity, 1).Result()
 	if err != nil {
 		return fmt.Errorf("查询redis中回收站数据失败: %v", err)
 	}
@@ -75,7 +75,6 @@ func DeleteForRecycle(identity string) error {
 func ListFormRedis(ctx context.Context, keys []string) ([]map[string]string, error) {
 	list := make([]map[string]string, 0)
 	for _, key := range keys {
-		fmt.Println(key)
 		result := Cache.HGetAll(ctx, key)
 		if err := result.Err(); err != nil {
 			return nil, err
@@ -90,8 +89,6 @@ func ListFormRedis(ctx context.Context, keys []string) ([]map[string]string, err
 // 使用Ceil向上取整 0.1 天也是1天
 func OecCalculate(now int64, countdown model.CountDown, key string) error {
 	ctx := context.Background()
-	// 获取username
-	userName := strings.Split(key, ":")[0]
 	day := float64(now-countdown.StartTime) / 86400
 	// 将倒计时同步至redis，时间则向上取整
 	if _, err := Cache.HSet(ctx, key,
@@ -112,8 +109,6 @@ func OecCalculate(now int64, countdown model.CountDown, key string) error {
 	if err := Cache.Expire(ctx, key, duration+random).Err(); err != nil {
 		return fmt.Errorf("设置过期时间失败: %v", err)
 	}
-	//添加成功则添+1
-	Cache.IncrBy(ctx, userName+":countdown_num", 1)
 	return nil
 }
 
@@ -124,7 +119,6 @@ func FdcCalculate(now int64, countdown model.CountDown, key string) error {
 	ctx := context.Background()
 	day := float64(countdown.EndTime-now) / 86400
 	// 获取username
-	userName := strings.Split(key, ":")[0]
 	// 将倒计时同步至redis，时间则向上取整
 	if _, err := Cache.HSet(ctx, key,
 		map[string]any{
@@ -145,7 +139,6 @@ func FdcCalculate(now int64, countdown model.CountDown, key string) error {
 	if err := Cache.Expire(ctx, key, duration+random).Err(); err != nil {
 		return fmt.Errorf("设置过期时间失败: %v", err)
 	}
-	Cache.IncrBy(ctx, userName+":countdown_num", 1)
 	return nil
 }
 
@@ -155,7 +148,7 @@ func RefFDC() error {
 	// 当前时间戳
 	now := time.Now().Unix()
 	// 查询redis中FDC的数据
-	FDCKeys, _, err := Cache.Scan(context.Background(), 0, FDCCountdownPrefix+"*", 50).Result()
+	FDCKeys, _, err := Cache.Scan(context.Background(), 0, "*:"+FDCCountdownPrefix+"*", 50).Result()
 	if err != nil {
 		logrus.Error("查询redis中FDC的数据失败", err)
 		return fmt.Errorf(err.Error())
@@ -171,7 +164,7 @@ func RefFDC() error {
 		endTime, _ := strconv.ParseInt(result["endTime"], 10, 64)
 		startTime, _ := strconv.ParseInt(result["start"], 10, 64)
 		//取出identity FDC的格式为 countdown:FDC:{{ identity }}
-		identity := strings.Split(FDC, "*:countdown:FDC:")[1]
+		identity := strings.Split(FDC, ":")[3]
 		// 判断当前日期时间戳是否大于结束日期时间戳
 		if now >= endTime {
 			//将已经到达的倒计时加入回收站
@@ -204,14 +197,14 @@ func RefOEC() error {
 	// 当前时间戳
 	now := time.Now().Unix()
 	// 查询redis中OEC的数据
-	FDCKeys, _, err := Cache.Scan(context.Background(), 0, OECCountdownPrefix+"*", 50).Result()
+	FDCKeys, _, err := Cache.Scan(context.Background(), 0, "*:"+OECCountdownPrefix+"*", 50).Result()
 	if err != nil {
 		return fmt.Errorf(err.Error())
 	}
 
 	for _, OEC := range FDCKeys {
 		// 获取identity值
-		identity := strings.Split(OEC, "*:countdown:OEC:")[1]
+		identity := strings.Split(OEC, ":")[3]
 		// 获取当前OEC key里面的全部字段，返回一个字符串map
 		result, err := Cache.HGetAll(context.Background(), OEC).Result()
 		if err != nil {

@@ -21,6 +21,7 @@ type UserDelCountDownService struct {
 	Identity string `form:"identity" json:"identity" binding:"required"`
 }
 
+// Del 删除倒计时
 func (svc *UserDelCountDownService) Del(token string) gin.H {
 	// 解析token
 	user, err := utils.AnalyseToken(token)
@@ -66,7 +67,6 @@ func (svc *UserDelCountDownService) Del(token string) gin.H {
 // 从redis中删除数据，并不加入回收站
 func DelCountDownForRedis(userName, identity string) error {
 	keys, _, err := utils.Cache.Scan(context.Background(), 0, userName+":countdown:*:"+identity, 30).Result()
-	logrus.Println(keys)
 	if err != nil {
 		return err
 	}

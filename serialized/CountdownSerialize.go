@@ -19,6 +19,7 @@ type CountdownSerialize struct {
 	Identity   string `json:"identity"`
 	Name       string `json:"name"`
 	Day        string `json:"day"`
+	Category   string `json:"category"`
 	Background string `json:"background"`
 }
 
@@ -30,6 +31,7 @@ func CountdownSerializeList(countdowns []map[string]string) []CountdownSerialize
 			Identity:   countdown["identity"],
 			Name:       countdown["name"],
 			Day:        countdown["day"],
+			Category:   countdown["category"],
 			Background: countdown["background"],
 		})
 	}
@@ -41,6 +43,7 @@ func CountdownSerializeSingle(countdown map[string]string) CountdownSerialize {
 		Identity:   countdown["identity"],
 		Name:       countdown["name"],
 		Day:        countdown["day"],
+		Category:   countdown["category"],
 		Background: countdown["background"],
 	}
 }
@@ -58,6 +61,7 @@ func CountdownSerializeSingleModel(countdown model.CountDown) CountdownSerialize
 		Identity:   countdown.Identity,
 		Name:       countdown.Name,
 		Day:        strconv.FormatFloat(math.Ceil(day), 'f', 2, 64),
+		Category:   countdown.CategoryIdentity,
 		Background: countdown.Background,
 	}
 }
@@ -77,6 +81,7 @@ func CountdownSerializeListModel(countdowns []model.CountDown) []CountdownSerial
 			Identity:   countdown.Identity,
 			Name:       countdown.Name,
 			Day:        strconv.FormatFloat(math.Ceil(day), 'f', 2, 64),
+			Category:   countdown.CategoryIdentity,
 			Background: countdown.Background,
 		})
 	}

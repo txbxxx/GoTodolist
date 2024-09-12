@@ -21,7 +21,7 @@ type UserRecycleCountDownListService struct{}
 func (svc UserRecycleCountDownListService) List() gin.H {
 	ctx := context.Background()
 	// 从redis的回收站中获取删除倒计时信息
-	keys, _, err := utils.Cache.Scan(ctx, 0, utils.DELCountdownPrefix+"countdown:*", 50).Result()
+	keys, _, err := utils.Cache.Scan(ctx, 0, "*"+utils.DELCountdownPrefix+"countdown:*", 50).Result()
 	if err != nil {
 		logrus.Error("获取回收站数据失败: ", err)
 		return gin.H{"code": -1, "msg": "系统繁忙请稍后在试"}

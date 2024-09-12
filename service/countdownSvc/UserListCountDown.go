@@ -25,6 +25,7 @@ import (
 type UserListCountDownService struct {
 }
 
+// List 列出所有倒计时
 func (svc UserListCountDownService) List(token string) gin.H {
 	ctx := context.Background()
 	// 解析token
@@ -34,7 +35,7 @@ func (svc UserListCountDownService) List(token string) gin.H {
 		return gin.H{"code": -1, "msg": "登录错误"}
 	}
 	// 从redis中读取countdown信息
-	keys, _, err := utils.Cache.Scan(ctx, 0, "countdown:*", 100).Result()
+	keys, _, err := utils.Cache.Scan(ctx, 0, user.Name+":countdown:*", 100).Result()
 	if err != nil {
 		logrus.Error("查询redis中Countdown的数据失败", err)
 		return gin.H{
@@ -70,20 +71,47 @@ func (svc UserListCountDownService) List(token string) gin.H {
 	}
 }
 
+// GetCountDownByCategory 根据分类获取倒计时
+// Param categoryIdentity 分类标识
+// Param token token密钥
+func (svc UserListCountDownService) GetCountDownByCategory(token, categoryIdentity string) gin.H {
+	list := svc.List(token)
+	if list["code"] != 200 {
+		return list
+	}
+	var c []serializes.CountdownSerialize
+	a, ok := list["data"].([]serializes.CountdownSerialize)
+	if ok {
+		for _, i := range a {
+			if i.Category == categoryIdentity {
+				c = append(c, i)
+			}
+		}
+		list["data"] = c
+	}
+	return list
+}
+
 // RefreshDayForMysql 从mysql中读取数据刷新倒计时
 // 从redis读取倒计时列表
 // 将倒计时列表中的数据同步至redis
 func RefreshDayForMysql(userName string) ([]model.CountDown, error) {
-	countdown := make([]model.CountDown, 1)
-	if err := utils.DB.Model(&model.CountDown{}).Find(&countdown).Error; err != nil {
+	countdown := make([]model.CountDown, 0)
+	// 使用关联查询直接查询出当前用户下面的countdown
+	var user model.User
+	if err := utils.DB.Preload("Category.CountDown").Take(&user).Error; err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("查询倒计时失败: %v", err)
 		}
 	}
+	// 遍历category拿出countdown
+	for _, category := range user.Category {
+		countdown = append(countdown, category.CountDown...)
+	}
 	// 当前时间戳
 	now := time.Now().Unix()
 	for _, count := range countdown {
-		key := userName + utils.OECCountdownPrefix + count.Identity
+		key := userName + ":" + utils.OECCountdownPrefix + count.Identity
 		if count.EndTime <= 0 {
 			// 计算过去时间oec
 			err := utils.OecCalculate(now, count, key)
@@ -91,7 +119,7 @@ func RefreshDayForMysql(userName string) ([]model.CountDown, error) {
 				return nil, err
 			}
 		} else {
-			key = utils.FDCCountdownPrefix + count.Identity
+			key = userName + ":" + utils.FDCCountdownPrefix + count.Identity
 			// 判断当前日期时间戳是否大于结束日期时间戳
 			if now >= count.EndTime {
 				// 大于则执行

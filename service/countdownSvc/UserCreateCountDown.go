@@ -11,6 +11,7 @@ package countdownSvc
 import (
 	"GoToDoList/model"
 	"GoToDoList/utils"
+	"context"
 	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -34,11 +35,8 @@ func (svc *UserCreateCountDownService) Create(token string) gin.H {
 	// 查找当前分类是否有相同倒计时存在
 	if err := utils.DB.Model(&data).Take(&data, "name = ? AND category_identity = ?", svc.Name, svc.CategoryIdentity).Error; !errors.Is(err, gorm.ErrRecordNotFound) {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return gin.H{"code": -1, "msg": "系统繁忙请稍后再试"}
+			return gin.H{"code": -1, "msg": "倒计时已存在"}
 		}
-	}
-	if data.Name != "" {
-		return gin.H{"code": -1, "msg": "倒计时已存在"}
 	}
 	// 创建对象前置操作
 	startTime, endTime := svc.StartTime.Unix(), svc.EndTime.Unix()
@@ -98,10 +96,11 @@ func isOecORFdcModel(countdown model.CountDown, name string) error {
 		}
 		key := name + ":countdown:FDC:" + countdown.Identity
 		// FDC
-		//if err := utils.FdcCalculate(newCountdown.StartTime, newCountdown.StartTime, newCountdown.EndTime, key, newCountdown.Background, newCountdown.Name, name, newCountdown.Identity); err != nil {
 		if err := utils.FdcCalculate(now, countdown, key); err != nil {
 			return fmt.Errorf("同步至redis失败: %w", err)
 		}
 	}
+	//添加成功则添+1
+	utils.Cache.IncrBy(context.Background(), name+":countdown_num", 1)
 	return nil
 }
