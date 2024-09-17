@@ -28,8 +28,6 @@ type UserCreateCountDownService struct {
 	CategoryIdentity string    `json:"categoryIdentity" form:"categoryIdentity" binding:"required"`
 }
 
-// TODO 没有设置查询当前用户的倒计时信息，感觉这个类别identity可以在前端获取到，然后创建的时候也只是显示当前用户的
-
 func (svc *UserCreateCountDownService) Create(token string) gin.H {
 	data := model.CountDown{}
 	// 查找当前分类是否有相同倒计时存在
@@ -73,7 +71,12 @@ func (svc *UserCreateCountDownService) txCreate(tx *gorm.DB, newCountdown model.
 		logrus.Error("创建倒计时错误: ", err)
 		return err
 	}
-	return isOecORFdcModel(newCountdown, name)
+	if err := isOecORFdcModel(newCountdown, name); err != nil {
+		return err
+	}
+	//添加成功则添+1
+	utils.Cache.IncrBy(context.Background(), name+":countdown_num", 1)
+	return nil
 }
 
 func isOecORFdcModel(countdown model.CountDown, name string) error {
@@ -83,7 +86,7 @@ func isOecORFdcModel(countdown model.CountDown, name string) error {
 		// OEC模式
 		// key用countdown:OEC:{{ Identity }}
 		// 这里需要同步初始时间即可，day表示当前时间和初始时间的差值
-		key := name + ":countdown:OEC:" + countdown.Identity
+		key := name + ":" + utils.OECCountdownPrefix + countdown.Identity
 		// 计算过去时间oec
 		if err := utils.OecCalculate(now, countdown, key); err != nil {
 			return fmt.Errorf("同步至redis失败: %w", err)
@@ -94,13 +97,20 @@ func isOecORFdcModel(countdown model.CountDown, name string) error {
 		if countdown.EndTime <= countdown.StartTime {
 			return fmt.Errorf("终止时间必须大于开始时间")
 		}
-		key := name + ":countdown:FDC:" + countdown.Identity
+		key := name + ":" + utils.FDCCountdownPrefix + countdown.Identity
+		// 判断当前日期时间戳是否大于结束日期时间戳
+		if now >= countdown.EndTime {
+			// 大于则执行
+			err := utils.AddCountDownRecycle(key, countdown.Identity)
+			if err != nil {
+				return fmt.Errorf("添加至回收站失败: %w", err)
+			}
+			logrus.Info("到达的倒计时加入回收站成功")
+		}
 		// FDC
 		if err := utils.FdcCalculate(now, countdown, key); err != nil {
 			return fmt.Errorf("同步至redis失败: %w", err)
 		}
 	}
-	//添加成功则添+1
-	utils.Cache.IncrBy(context.Background(), name+":countdown_num", 1)
 	return nil
 }

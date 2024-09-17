@@ -17,9 +17,9 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/singleflight"
 	"gorm.io/gorm"
 	"strconv"
-	"time"
 )
 
 type UserListCountDownService struct {
@@ -47,18 +47,28 @@ func (svc UserListCountDownService) List(token string) gin.H {
 	result, err := utils.Cache.Get(ctx, user.Name+":countdown_num").Result()
 	// 将字符串转换为int
 	countdownNum, _ := strconv.Atoi(result)
+	fmt.Println(len(keys), countdownNum)
 	if len(keys) != countdownNum {
-		countdown, err := RefreshDayForMysql(user.Name)
+		fmt.Println("Mysql")
+		var group singleflight.Group
+		countdown, err, _ := group.Do(user.Name, func() (interface{}, error) {
+			countdown, err := RefreshDayForMysql(user.Name)
+			if err != nil {
+				return nil, err
+			}
+			return countdown, nil
+		})
 		if err != nil {
-			logrus.Error(err)
+			logrus.Error("从mysql中读取数据失败", err)
 			return gin.H{"code": -1, "msg": "系统繁忙请稍后再试"}
 		}
 		return gin.H{
 			"code": 200,
 			"msg":  "获取倒计时列表成功！",
-			"data": serializes.CountdownSerializeListModel(countdown),
+			"data": serializes.CountdownSerializeListModel(countdown.([]model.CountDown)),
 		}
 	}
+	fmt.Println("Redis")
 	// 遍历keys,HGetAll返回map[string]string
 	countdownList, err := utils.ListFormRedis(ctx, keys)
 	if err != nil {
@@ -99,7 +109,7 @@ func RefreshDayForMysql(userName string) ([]model.CountDown, error) {
 	countdown := make([]model.CountDown, 0)
 	// 使用关联查询直接查询出当前用户下面的countdown
 	var user model.User
-	if err := utils.DB.Preload("Category.CountDown").Take(&user).Error; err != nil {
+	if err := utils.DB.Where("name = ?", userName).Preload("Category.CountDown").Take(&user).Error; err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("查询倒计时失败: %v", err)
 		}
@@ -108,33 +118,9 @@ func RefreshDayForMysql(userName string) ([]model.CountDown, error) {
 	for _, category := range user.Category {
 		countdown = append(countdown, category.CountDown...)
 	}
-	// 当前时间戳
-	now := time.Now().Unix()
 	for _, count := range countdown {
-		key := userName + ":" + utils.OECCountdownPrefix + count.Identity
-		if count.EndTime <= 0 {
-			// 计算过去时间oec
-			err := utils.OecCalculate(now, count, key)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			key = userName + ":" + utils.FDCCountdownPrefix + count.Identity
-			// 判断当前日期时间戳是否大于结束日期时间戳
-			if now >= count.EndTime {
-				// 大于则执行
-				err := utils.AddCountDownRecycle(key, count.Identity)
-				if err != nil {
-					return nil, err
-				}
-				logrus.Info("到达的倒计时加入回收站成功")
-				continue
-			}
-			//FDC
-			// 如果没有大于，就计算还有多少天，使用结束时间减去现在时间
-			if err := utils.FdcCalculate(now, count, key); err != nil {
-				return nil, err
-			}
+		if err := isOecORFdcModel(count, userName); err != nil {
+			return nil, fmt.Errorf("同步至redis失败: %v", err)
 		}
 	}
 	return countdown, nil

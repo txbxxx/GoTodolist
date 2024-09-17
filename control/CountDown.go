@@ -97,7 +97,7 @@ func UploadBackground(c *gin.Context) {
 func DetailCountDown(c *gin.Context) {
 	var svc countdownSvc.UserDetailCountDownService
 	if err := c.ShouldBind(&svc); err == nil {
-		c.JSON(200, svc.Detail(c.Param("identity")))
+		c.JSON(200, svc.Detail(c.Param("identity"), c.GetHeader("token")))
 	} else {
 		c.JSON(200, gin.H{
 			"error": err.Error(),

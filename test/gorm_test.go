@@ -42,9 +42,7 @@ func TestCreateUser(t *testing.T) {
 	if err = sqlDB.Ping(); err != nil {
 		logrus.Println("链接失败")
 	}
-	var user model.User
-	db.Preload("Category.CountDown").First(&user)
-	for _, category := range user.Category {
-		fmt.Println(category.CountDown)
-	}
+	var countdown model.CountDown
+	db.Preload("Category.CountDown").Where("identity = ?", "c8b84861-d44e-46f4-9e97-2c2226bd32f4").Take(&countdown)
+	fmt.Println(countdown)
 }
