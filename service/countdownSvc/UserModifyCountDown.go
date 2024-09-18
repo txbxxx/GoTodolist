@@ -28,8 +28,6 @@ type UserModifyCountDownService struct {
 	Background string    `json:"background" form:"background"`
 }
 
-// TODO 修改数据时如果同步到redis，但是刚好在准备改的时候有节点可能会读取，这样就读取的是旧数据了
-
 func (svc *UserModifyCountDownService) Modify(token string) gin.H {
 	// 解析token
 	user, err := utils.AnalyseToken(token)

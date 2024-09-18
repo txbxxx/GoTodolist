@@ -9,12 +9,12 @@
 package test
 
 import (
-	"GoToDoList/model"
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
+	"strconv"
 	"testing"
 )
 
@@ -42,7 +42,6 @@ func TestCreateUser(t *testing.T) {
 	if err = sqlDB.Ping(); err != nil {
 		logrus.Println("链接失败")
 	}
-	var countdown model.CountDown
-	db.Preload("Category.CountDown").Where("identity = ?", "c8b84861-d44e-46f4-9e97-2c2226bd32f4").Take(&countdown)
-	fmt.Println(countdown)
+	i, err := strconv.Atoi("40ccf947-07cf-484c-9336-38638c9469be")
+	fmt.Println(i)
 }

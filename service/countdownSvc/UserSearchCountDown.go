@@ -23,6 +23,8 @@ type UserSearchCountDownService struct {
 	Day  int    `json:"day" form:"day"`
 }
 
+// TODO 从数据库中查询并同步到redis中
+
 // Search 从redis中搜索
 func (svc UserSearchCountDownService) Search(token string) gin.H {
 	// 解析token
@@ -37,6 +39,10 @@ func (svc UserSearchCountDownService) Search(token string) gin.H {
 	if err != nil {
 		logrus.Error("UserSearchCountDownService: 从redis查找所有倒计时数据失败", err)
 		return gin.H{"code": -1, "msg": "系统繁忙请稍后在试"}
+	}
+	// 判断是否查询到消息
+	if len(keys) == 0 {
+
 	}
 	//顺序便利消息
 	countdownList := make([]map[string]string, 0)

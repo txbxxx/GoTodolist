@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 	"time"
@@ -60,7 +61,11 @@ func (svc *UserCreateCountDownService) Create(token string) gin.H {
 		logrus.Error("创建倒计时错误: ", err)
 		return gin.H{"code": -1, "msg": "系统繁忙请稍后再试"}
 	}
-
+	// 创建成功后将identity添加到sorted set中
+	utils.Cache.ZAdd(context.Background(), "isMysql:countdown", &redis.Z{
+		Score:  1,
+		Member: newCountdown.Identity,
+	})
 	return gin.H{"code": 200, "msg": "创建成功倒计时成功！！"}
 }
 

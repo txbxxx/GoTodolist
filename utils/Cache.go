@@ -228,8 +228,6 @@ func RefOEC() error {
 	return nil
 }
 
-//TODO 查询倒计时不能查询某个用户的
-
 // AddCountDownRecycle 添加至回收站
 // 将倒计时加上前缀delete: 表示加入回收站了
 func AddCountDownRecycle(key string, identity string) error {

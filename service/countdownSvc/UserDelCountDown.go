@@ -66,7 +66,8 @@ func (svc *UserDelCountDownService) Del(token string) gin.H {
 // DelCountDownForRedis 从redis中删除一条数据
 // 从redis中删除数据，并不加入回收站
 func DelCountDownForRedis(userName, identity string) error {
-	keys, _, err := utils.Cache.Scan(context.Background(), 0, userName+":countdown:*:"+identity, 30).Result()
+	ctx := context.Background()
+	keys, _, err := utils.Cache.Scan(ctx, 0, userName+":countdown:*:"+identity, 30).Result()
 	if err != nil {
 		return err
 	}
@@ -75,9 +76,11 @@ func DelCountDownForRedis(userName, identity string) error {
 		return nil
 	}
 	// 删除
-	err = utils.Cache.Del(context.Background(), keys[0]).Err()
+	err = utils.Cache.Del(ctx, keys[0]).Err()
 	if err != nil {
 		return fmt.Errorf("删除redis数据失败: %v", err)
 	}
+	// 删除成功从set isMysql:countdown中
+	utils.Cache.ZRem(ctx, "isMysql:countdown", identity)
 	return nil
 }

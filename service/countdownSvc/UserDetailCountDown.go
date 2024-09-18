@@ -52,6 +52,11 @@ func (svc UserDetailCountDownService) Detail(identity, token string) gin.H {
 			"data": serializes.CountdownSerializeSingle(countdown),
 		}
 	}
+	// 先判断sorted 中是否存在
+	val := utils.Cache.ZScore(ctx, "isMysql:countdown", identity).Val()
+	if val != 1 {
+		return gin.H{"code": -1, "msg": "数据不存在"}
+	}
 	// 从mysql获取
 	var group singleflight.Group
 	countdown, err, _ := group.Do(identity, func() (interface{}, error) {

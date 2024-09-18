@@ -10,6 +10,7 @@ package test
 
 import (
 	"context"
+	"fmt"
 	"github.com/go-redis/redis/v8"
 	"github.com/sirupsen/logrus"
 	"testing"
@@ -29,4 +30,6 @@ func TestRedis(t *testing.T) {
 	}
 	keys, _, err := Cache.Scan(context.Background(), 0, "admin:countdown:FDC:d1bba3b7-da6a-494f-b4ac-8ba67edd5d65", 3).Result()
 	logrus.Println(keys)
+	val := Cache.ZScore(context.Background(), "kyy", "is").Val()
+	fmt.Println(val)
 }

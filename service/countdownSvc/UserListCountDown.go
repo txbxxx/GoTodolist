@@ -35,7 +35,7 @@ func (svc UserListCountDownService) List(token string) gin.H {
 		return gin.H{"code": -1, "msg": "登录错误"}
 	}
 	// 从redis中读取countdown信息
-	keys, _, err := utils.Cache.Scan(ctx, 0, user.Name+":countdown:*", 100).Result()
+	keys, _, err := utils.Cache.Scan(ctx, 0, user.Name+":countdown:*", 300).Result()
 	if err != nil {
 		logrus.Error("查询redis中Countdown的数据失败", err)
 		return gin.H{

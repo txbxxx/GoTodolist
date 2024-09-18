@@ -60,7 +60,6 @@ func DBUntil(DBUser, DBPwd, DBAddr, DBName, TablePrefix string) {
 	DB = db
 	//创建表
 	CreateTable()
-
 }
 
 // CreateTable 使用自动迁移创建表
