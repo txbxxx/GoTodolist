@@ -25,6 +25,7 @@ const (
 	FDCCountdownPrefix = "countdown:FDC:"
 	OECCountdownPrefix = "countdown:OEC:"
 	DELCountdownPrefix = "delete:"
+	Redis_Lock_Time    = 30
 )
 
 var Cache *redis.Client

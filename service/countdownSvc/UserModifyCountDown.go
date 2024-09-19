@@ -11,6 +11,7 @@ package countdownSvc
 import (
 	"GoToDoList/model"
 	"GoToDoList/utils"
+	"context"
 	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -53,15 +54,25 @@ func (svc *UserModifyCountDownService) Modify(token string) gin.H {
 	}
 	// 修改倒计时
 	countdown.Name, countdown.EndTime, countdown.StartTime, countdown.Background = svc.Name, svc.EndTime.Unix(), svc.StartTime.Unix(), svc.Background
-	// 保存
-	err = utils.DB.Transaction(func(tx *gorm.DB) error {
-		return svc.txSave(countdown, user.Name)
-	})
-	if err != nil {
-		logrus.Error("修改倒计时失败", err)
-		return gin.H{
-			"code": -1,
-			"msg":  "系统繁忙请稍后再试",
+	// 自旋获取锁
+	for current := 0; current < utils.Redis_Lock_Time; current++ {
+		// 设置分布式锁
+		if flag := utils.Cache.SetNX(context.Background(), user.Name+":countdown:lock:"+svc.Identity, "", time.Second*20).Val(); flag {
+			// 执行修改事务
+			err = utils.DB.Transaction(func(tx *gorm.DB) error {
+				return svc.txSave(countdown, user.Name)
+			})
+			if err != nil {
+				logrus.Error("修改倒计时失败", err)
+				return gin.H{
+					"code": -1,
+					"msg":  "系统繁忙请稍后再试",
+				}
+			}
+		} else {
+			// 如果没有获取到锁就自旋
+			// 如果没拿到锁就等待2秒
+			time.Sleep(time.Second * 2)
 		}
 	}
 	return gin.H{

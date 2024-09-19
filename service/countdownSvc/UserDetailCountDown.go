@@ -53,7 +53,7 @@ func (svc UserDetailCountDownService) Detail(identity, token string) gin.H {
 		}
 	}
 	// 先判断sorted 中是否存在
-	val := utils.Cache.ZScore(ctx, "isMysql:countdown", identity).Val()
+	val := utils.Cache.ZScore(ctx, user.Name+":isMysql:countdown", identity).Val()
 	if val != 1 {
 		return gin.H{"code": -1, "msg": "数据不存在"}
 	}

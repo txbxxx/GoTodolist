@@ -81,6 +81,6 @@ func DelCountDownForRedis(userName, identity string) error {
 		return fmt.Errorf("删除redis数据失败: %v", err)
 	}
 	// 删除成功从set isMysql:countdown中
-	utils.Cache.ZRem(ctx, "isMysql:countdown", identity)
+	utils.Cache.ZRem(ctx, userName+":isMysql:countdown", identity)
 	return nil
 }

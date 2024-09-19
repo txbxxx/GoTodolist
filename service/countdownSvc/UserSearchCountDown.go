@@ -23,7 +23,7 @@ type UserSearchCountDownService struct {
 	Day  int    `json:"day" form:"day"`
 }
 
-// TODO 从数据库中查询并同步到redis中
+// 前端先调用list在search
 
 // Search 从redis中搜索
 func (svc UserSearchCountDownService) Search(token string) gin.H {
@@ -34,15 +34,11 @@ func (svc UserSearchCountDownService) Search(token string) gin.H {
 		return gin.H{"code": -1, "msg": "登录错误"}
 	}
 	ctx := context.Background()
-	// 使用Scan从redis里面读取倒计时中的全部信息
+	// 使用Scan从redis里面读取倒计时中的全部 信息
 	keys, _, err := utils.Cache.Scan(ctx, 0, user.Name+":countdown:*", 50).Result()
 	if err != nil {
 		logrus.Error("UserSearchCountDownService: 从redis查找所有倒计时数据失败", err)
 		return gin.H{"code": -1, "msg": "系统繁忙请稍后在试"}
-	}
-	// 判断是否查询到消息
-	if len(keys) == 0 {
-
 	}
 	//顺序便利消息
 	countdownList := make([]map[string]string, 0)

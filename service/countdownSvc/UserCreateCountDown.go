@@ -62,9 +62,9 @@ func (svc *UserCreateCountDownService) Create(token string) gin.H {
 		return gin.H{"code": -1, "msg": "系统繁忙请稍后再试"}
 	}
 	// 创建成功后将identity添加到sorted set中
-	utils.Cache.ZAdd(context.Background(), "isMysql:countdown", &redis.Z{
+	utils.Cache.ZAdd(context.Background(), user.Name+":isMysql:countdown", &redis.Z{
 		Score:  1,
-		Member: newCountdown.Identity,
+		Member: newCountdown.Name,
 	})
 	return gin.H{"code": 200, "msg": "创建成功倒计时成功！！"}
 }
